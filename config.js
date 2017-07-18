@@ -1,0 +1,10 @@
+//config.js
+requirejs.config({
+	baseUrl:'utils',
+	paths:{
+		THREE:'three',
+		jquery:'jquery-3.1.1.min',
+		numeric:'numeric',
+		dat:'dat.gui'
+	}
+});
