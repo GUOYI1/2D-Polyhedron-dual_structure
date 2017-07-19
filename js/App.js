@@ -389,8 +389,8 @@
             RenderGeometry[num].scale(mesh_scale,mesh_scale,mesh_scale);
 
             Renderline[num]=new THREE.Line(RenderGeometry[num],LineRenderMaterial,THREE.LineSegments);
-            num++;
             scene2.add(Renderline[num]);
+            num++;
             he=he.next;
         }while(he!=start);
 
