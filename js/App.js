@@ -77,8 +77,8 @@
     var highlight_face_id=undefined;
     var highlight_point_id=undefined;
 
-    var mesh_z_trans=0;
-    var dual_z_trans=0;
+    var mesh_scale=0;
+    var dual_scale=0;
 
 
     function readJson(event)
@@ -105,13 +105,15 @@
             dualGeometry[e]=new THREE.Geometry();
             var index1=mesh.internal_dual_edge_length_map[e].f_p.x;
             var index2=mesh.internal_dual_edge_length_map[e].f_p.y;
-            dualGeometry[e].vertices.push(mesh.mesh_face[index1].dual_pos);
-            dualGeometry[e].vertices.push(mesh.mesh_face[index2].dual_pos);
+            dualGeometry[e].vertices.push(new THREE.Vector3().copy(mesh.mesh_face[index1].dual_pos));
+            dualGeometry[e].vertices.push(new THREE.Vector3().copy(mesh.mesh_face[index2].dual_pos));
             if(mesh.internal_dual_edge_length_map[e].length>=0)
                 dualGeometry[e].colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
             else
                 dualGeometry[e].colors.push(new THREE.Color( 0xFF0000 ),new THREE.Color( 0xFF0000 ));
-             
+            //dualGeometry[e].
+            dualGeometry[e].translate(-mesh.dual_geo_center.x,-mesh.dual_geo_center.y,-mesh.dual_geo_center.z);   
+            dualGeometry[e].scale(dual_scale,dual_scale,dual_scale);
             Renderdualline[e]=new THREE.Line(dualGeometry[e],LineRenderMaterial,THREE.LineSegments);
 
 
@@ -126,11 +128,13 @@
                 {
                     var idx=dualGeometry.length;
                     dualGeometry[idx] = new THREE.Geometry();
-                    var e_v1=mesh.mesh_face[f].dual_pos;
+                    var e_v1=new THREE.Vector3().copy(mesh.mesh_face[f].dual_pos);
                     var e_v2=new THREE.Vector3().addVectors(e_v1,mesh.mesh_face[f].external_dual_edge[e]);
                     dualGeometry[idx].vertices.push(e_v1);
                     dualGeometry[idx].vertices.push(e_v2);
                     dualGeometry[idx].colors.push(new THREE.Color( 0x7FFF00 ),new THREE.Color( 0x7FFF00 ));
+                    dualGeometry[idx].translate(-mesh.dual_geo_center.x,-mesh.dual_geo_center.y,-mesh.dual_geo_center.z);   
+                    dualGeometry[idx].scale(dual_scale,dual_scale,dual_scale);
                     Renderdualline[idx] = new THREE.Line(dualGeometry[idx],LineRenderMaterial,THREE.LineSegments);
                     scene1.add(Renderdualline[idx]);
                 }
@@ -155,6 +159,8 @@
         scene2=new THREE.Scene;
         views[0].scene=scene1;
         views[1].scene=scene2;
+        mesh_scale=0;
+        dual_scale=0;
         highlight_edge=new THREE.Line();
         highlight_edge.material=LineRenderMaterial;
         highlight_face=new THREE.Mesh();
@@ -228,8 +234,8 @@
         for(var e in edgepair)
         {
             RenderGeometry[e]=new THREE.Geometry();
-            RenderGeometry[e].vertices.push(mesh.mesh_vertex[edgepair[e].x].pos);
-            RenderGeometry[e].vertices.push(mesh.mesh_vertex[edgepair[e].y].pos);
+            RenderGeometry[e].vertices.push(new THREE.Vector3().copy(mesh.mesh_vertex[edgepair[e].x].pos));
+            RenderGeometry[e].vertices.push(new THREE.Vector3().copy(mesh.mesh_vertex[edgepair[e].y].pos));
             
 
             if(vertex_edge_count[edgepair[e].x]==1 || vertex_edge_count[edgepair[e].y]==1)
@@ -315,33 +321,52 @@
         mesh.half_finished=true;
         mesh.find_2D_Nodes();
         mesh.Produce_dual_structure();
-        //var mesh_range=new THREE.Vector3().subVectors(mesh.bound[1],mesh.bound[0]);
 
+        //
+        //Adjust the size and scale of the geometry
+        var mesh_range=new THREE.Vector3().subVectors(mesh.bound[1],mesh.bound[0]);
+        var dual_range=new THREE.Vector3().subVectors(mesh.dual_bound[1],mesh.dual_bound[0]);
+        var mesh_aspect=views[1].window.width / views[1].window.height;
+        var dual_aspect=views[0].window.width / views[0].window.height;
+        if(mesh_range.x>mesh_range.y*mesh_aspect)
+            mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/mesh_range.x;
+        else
+            mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(mesh_aspect*mesh_range.y);
+        
+        if(dual_range.x>dual_range.y*dual_aspect)
+            dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/dual_range.x;
+        else
+            dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(dual_aspect*dual_range.y);
+        //console.log(mesh_scale);
         for(var e in RenderGeometry)
         {
+            RenderGeometry[e].translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);   
+            RenderGeometry[e].scale(mesh_scale,mesh_scale,mesh_scale);
             Renderline[e]=new THREE.Line(RenderGeometry[e],LineRenderMaterial,THREE.LineSegments);
             scene2.add(Renderline[e]);   
         }
         updateDualStructure();
 
         highlight_edge_id=0;
-        var highlight_edge_geometry=new THREE.Geometry()
-        highlight_edge_geometry.vertices.push(mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos,mesh.mesh_half_edge[highlight_edge_id].vert.pos);
+        var highlight_edge_geometry=new THREE.Geometry();
+        highlight_edge_geometry.vertices.push(new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos),
+            new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].vert.pos));
         highlight_edge_geometry.colors.push(new THREE.Color(0xFFFF00),new THREE.Color(0xFF0000))
+
+        highlight_edge_geometry.translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);   
+        highlight_edge_geometry.scale(mesh_scale,mesh_scale,mesh_scale);
+
         highlight_edge=new THREE.Line(highlight_edge_geometry,LineRenderMaterial,THREE.LineSegments)
 
         scene2.add(highlight_edge);
         scene2.add(highlight_face);
         scene2.add(highlight_point);
         console.log(mesh);
-        //Adjust Camera
-        // if(mesh.external_face_ID!=undefined)
-        // {
-        //     camera.position.x=mesh.mesh_face[mesh.external_face_ID].center_pos.x;
-        //     camera.position.y=mesh.mesh_face[mesh.external_face_ID].center_pos.y; 
-        //     // camera.lookAt(mesh.mesh_face[mesh.external_face_ID].center_pos);
-        //     // orbit = new THREE.OrbitControls( camera, renderer.domElement);
-        // }
+
   
     }
     function Execute_Barycentric_Subdivision()
@@ -355,10 +380,16 @@
         do
         {
             RenderGeometry[num]=new THREE.Geometry();
-            RenderGeometry[num].vertices.push(mesh.mesh_face[highlight_face_id].center_pos);
-            RenderGeometry[num].vertices.push(he.vert.pos);
+            RenderGeometry[num].vertices.push(new THREE.Vector3().copy(mesh.mesh_face[highlight_face_id].center_pos));
+            RenderGeometry[num].vertices.push(new THREE.Vector3().copy(he.vert.pos));
             RenderGeometry[num].colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
+            RenderGeometry[num].translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);   
+            RenderGeometry[num].scale(mesh_scale,mesh_scale,mesh_scale);
+
             Renderline[num]=new THREE.Line(RenderGeometry[num],LineRenderMaterial,THREE.LineSegments);
+            num++;
             scene2.add(Renderline[num]);
             he=he.next;
         }while(he!=start);
@@ -401,24 +432,33 @@
             if(keychar=='N')
             {
                 highlight_edge_id=mesh.mesh_half_edge[highlight_edge_id].next.id;
-                highlight_edge_geo.vertices[0]=mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos;
-                highlight_edge_geo.vertices[1]=mesh.mesh_half_edge[highlight_edge_id].vert.pos;
+                highlight_edge_geo.vertices[0]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos);
+                highlight_edge_geo.vertices[1]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].vert.pos);
+
+                highlight_edge_geo.translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);  
+
+                highlight_edge_geo.scale(mesh_scale,mesh_scale,mesh_scale);
                 highlight_edge.geometry=highlight_edge_geo;
-
-
             }
             else if(keychar=='S')
             {
                 highlight_edge_id=mesh.mesh_half_edge[highlight_edge_id].sym.id;
-                highlight_edge_geo.vertices[0]=mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos;
-                highlight_edge_geo.vertices[1]=mesh.mesh_half_edge[highlight_edge_id].vert.pos;
+                highlight_edge_geo.vertices[0]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos);
+                highlight_edge_geo.vertices[1]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].vert.pos);
+                highlight_edge_geo.translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);  
+
+                highlight_edge_geo.scale(mesh_scale,mesh_scale,mesh_scale);
                 highlight_edge.geometry=highlight_edge_geo;
 
             }    
             else if(keychar=='F')
             {
                 highlight_face_id=mesh.mesh_half_edge[highlight_edge_id].face.id;
-                 var he=mesh.mesh_face[highlight_face_id].startedge;
+                var he=mesh.mesh_face[highlight_face_id].startedge;
                 var PolyShape= new THREE.Shape();
                 PolyShape.moveTo(he.vert.pos.x,he.vert.pos.y);
                 do
@@ -427,6 +467,10 @@
                     PolyShape.lineTo(he.vert.pos.x,he.vert.pos.y);
                 }while(he!=mesh.mesh_face[highlight_face_id].startedge);
                 highlight_face_geo=new THREE.ShapeGeometry(PolyShape);
+                highlight_face_geo.translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);  
+                highlight_face_geo.scale(mesh_scale,mesh_scale,mesh_scale);
                 highlight_face.geometry=highlight_face_geo;
                 
                 highlight_edge_id=undefined;
@@ -435,8 +479,14 @@
             else if(keychar=='V')
             {
                 highlight_point_id=mesh.mesh_half_edge[highlight_edge_id].vert.id;
-                highlight_point_geo.vertices[0]=mesh.mesh_vertex[highlight_point_id].pos;
+                highlight_point_geo.vertices[0]=new THREE.Vector3().copy(mesh.mesh_vertex[highlight_point_id].pos);
+                highlight_point_geo.translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);  
+                highlight_point_geo.scale(mesh_scale,mesh_scale,mesh_scale);
                 highlight_point.geometry=highlight_point_geo;
+
+                
                 highlight_edge_id=undefined;
                 highlight_edge.geometry=new THREE.Geometry();
             }    
@@ -447,8 +497,12 @@
             if(keychar=='L')
             {
                 highlight_edge_id=mesh.mesh_vertex[highlight_point_id].edge.id;
-                highlight_edge_geo.vertices[0]=mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos;
-                highlight_edge_geo.vertices[1]=mesh.mesh_half_edge[highlight_edge_id].vert.pos;
+                highlight_edge_geo.vertices[0]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos);
+                highlight_edge_geo.vertices[1]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].vert.pos);
+                highlight_edge_geo.translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);  
+                highlight_edge_geo.scale(mesh_scale,mesh_scale,mesh_scale);
                 highlight_edge.geometry=highlight_edge_geo;
                 
                 highlight_point_id=undefined;
@@ -460,8 +514,13 @@
             if(keychar=='L')
             {
                 highlight_edge_id=mesh.mesh_face[highlight_face_id].startedge.id;
-                highlight_edge_geo.vertices[0]=mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos;
-                highlight_edge_geo.vertices[1]=mesh.mesh_half_edge[highlight_edge_id].vert.pos;
+                highlight_edge_geo.vertices[0]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].sym.vert.pos);
+                highlight_edge_geo.vertices[1]=new THREE.Vector3().copy(mesh.mesh_half_edge[highlight_edge_id].vert.pos);
+                highlight_edge_geo.translate(-mesh.mesh_face[mesh.external_face_ID].center_pos.x,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.y,
+                -mesh.mesh_face[mesh.external_face_ID].center_pos.z);  
+                highlight_edge_geo.scale(mesh_scale,mesh_scale,mesh_scale);
+
                 highlight_edge.geometry=highlight_edge_geo;
 
                 highlight_face_id=undefined;

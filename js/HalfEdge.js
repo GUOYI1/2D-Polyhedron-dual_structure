@@ -189,66 +189,6 @@ Mesh.prototype.find_2D_Nodes=function(){
     	// var thick=[];
     	var sign=1;
     	var startface=undefined, endface=undefined;
-    	// do
-    	// {
-    	// 	this.node[i].Sort_Face_ID.push(he.face.id)  		
-    	// 	var l=(new THREE.Vector3().subVectors(he.vert.pos,he.sym.vert.pos));
-    	// 	var dir=GetEdgeNormal2D(l);
-    	// 	sort_direction.push(dir);
-    	// 	thick.push(l.length())
-    	// 	he=he.next.sym;
-    	// }while(he!=start)
-
-
-    	// var sort_face_num=this.node[i].Sort_Face_ID.length;
-    	// var sign=1;
-    	// var startface=undefined, endface=undefined;
-    	// var next_face_index=undefined;
-
-    	// for(var j=0;j<sort_face_num;j++)
-    	// {
-    	// 	if(j==sort_face_num-1) next_face_index=0;
-    	// 	else next_face_index=j+1;
-    	// 	var node_face_pair_obj=new Node_Face_Pair;
-    	// 	node_face_pair_obj.f_p=new THREE.Vector2(this.node[i].Sort_Face_ID[j],this.node[i].Sort_Face_ID[next_face_index])
-
-    	// 	var index=this.internal_dual_edge_direction_map.findIndex(function(x) { 
-    	// 	var reverse_f_pair=new THREE.Vector2(node_face_pair_obj.f_p.y,node_face_pair_obj.f_p.x);
-    	// 	return (x.f_p.x == node_face_pair_obj.f_p.x && x.f_p.y == node_face_pair_obj.f_p.y)
-    	// 			|| (x.f_p.x==reverse_f_pair.x && x.f_p.y==reverse_f_pair.y); });
-
-    	// 	if(index==-1)
-    	// 	{
-	    // 		if(node_face_pair_obj.f_p.y>node_face_pair_obj.f_p.x)
-	    // 		{
-	    // 			sign=1;
-	    // 			startface=node_face_pair_obj.f_p.x;
-	    // 			endface=node_face_pair_obj.f_p.y;
-	    // 		}	
-	    // 		else
-	    // 		{
-	    // 			sign=-1;
-	    // 			startface=node_face_pair_obj.f_p.y;
-	    // 			endface=node_face_pair_obj.f_p.x;
-
-	    // 		}
-	    // 		var direction_map_obj=new Direction_Map_Obj();
-	    // 		var pair=new THREE.Vector2(startface,endface)
-	    // 		var d=new THREE.Vector3(sign*sort_direction[next_face_index].x,sign*sort_direction[next_face_index].y,0);
-	    // 		direction_map_obj.f_p=pair;
-	    // 		direction_map_obj.direction_vector=d;
-	    // 		direction_map_obj.id=map_index;
-
-	    // 		this.internal_dual_edge_direction_map.push(direction_map_obj);
-	    // 		node_face_pair_obj.dual_edge_ID=map_index;
-	    // 		map_index++;
-	    // 	}
-    	// 	else{
-    	// 		node_face_pair_obj.dual_edge_ID=index;
-    	// 	}
-    	// 	this.node[i].face_pair.push(node_face_pair_obj);
-    	// }
-
     	do
     	{
     		this.node[i].Sort_Face_ID.push(he.sym.face.id); 
@@ -393,7 +333,7 @@ Mesh.prototype.Produce_dual_structure=function()
 	  	this.dual_bound[i].multiplyScalar(scale);
 	  	this.dual_bound[i].add(this.mesh_face[this.external_face_ID].center_pos);
 	 }
-	 this.dual_geo_center=this.mesh_face[this.external_face_ID].center_pos;
+	 this.dual_geo_center=new THREE.Vector3().copy(this.mesh_face[this.external_face_ID].center_pos);
 	 for(var i in this.internal_dual_edge_length_map)
 	 	this.internal_dual_edge_length_map[i].length*=scale;
 	

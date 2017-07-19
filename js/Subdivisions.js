@@ -226,7 +226,7 @@ Mesh.prototype.BaryCentricSubdivision=function(f_id)
 
 	//Rescale the dual pos of new faces
 	if(min_original_length==undefined) min_original_length=ex_scale;
-	var scale=min_original_length/(2*max_dual_length);
+	var scale=min_original_length/(3*max_dual_length);
 	console.log(scale);
 	do
 	{
