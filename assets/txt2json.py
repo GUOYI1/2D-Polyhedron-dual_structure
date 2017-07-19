@@ -8,22 +8,24 @@ class Txt2Json:
 			'edges':{},
 		}
 	def ParseVertices(self,filename):
-		f_vertex= open(filename);
+		vertex= open(filename);
 		v=self.json['vertices'];
 		i=0;
-		for line in f_vertex:		
-			v_pos=line.strip().split('\t')
-			v[i]=map(float,v_pos[1:])
-			i+=1;
+		for line in vertex:		
+			v_pos=line.strip().split('\t');
+			i=int(v_pos[0]);
+			v[i]=map(float,v_pos[1:]);
+
 
 	def ParseEdges(self,filename):
-		f_edge=open(filename);
+		edge=open(filename);
 		e=self.json['edges'];
-		i=0
-		for line in f_edge:
-			edge_v=line.strip().split('\t')
-		 	e[i]=map(int,edge_v[1:])
-		 	i+=1;
+		i=0;
+		for line in edge:
+			edge_v=line.strip().split('\t');
+			i=int(edge_v[0]);
+		 	e[i]=map(int,edge_v[1:]);
+
 
 
 

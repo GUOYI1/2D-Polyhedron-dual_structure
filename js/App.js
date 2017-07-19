@@ -181,6 +181,7 @@
                 alert("Z coords must be 0");
                 return;
             }
+            console.log(v);
             mesh.mesh_vertex[v]=new Vertex(v);
             mesh.mesh_vertex[v].pos=new THREE.Vector3(
                 json.vertices[v][0],
