@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>
+		dual_result
+	</title>
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+</head>
+<body>
+	<script>
+		var edge=[];
+		var vertex=[];
+		// window.onmessage = function(e){
+		// 	document.body.innerHTML="";
+		// }
+
+		window.onload = function(){
+			var vertices=JSON.parse(localStorage.Vertices);
+			var edges=JSON.parse(localStorage.Edges);
+			//console.log(vertices);
+			//var edges=localStorage.Edges;
+			document.write("<XMP>")
+			if(vertices==undefined)
+			{
+				document.write("No dual_data to be shown");
+				return;
+			}
+			document.write("Vertices:");	
+			document.write("\r\n");
+			document.write("idx\tpos_X\t\tpos_Y\t\tpos_Z\r");
+			for(var i in vertices)
+			{
+				var v_obj=JSON.parse(vertices[i]);
+				document.write(v_obj.index+"\t"
+					+v_obj.x.toFixed(6)+"\t"
+					+v_obj.y.toFixed(6)+"\t"
+					+v_obj.z.toFixed(6)+"\r");
+			}
+			document.write("\r\n\n");			
+			document.write("Edges:");
+			document.write("\r\n");
+			document.write("idx\tv_idx1\tv_idx2\r");
+			for(var i in edges)
+			{
+				var e_obj=JSON.parse(edges[i]);
+				document.write(e_obj.index+"\t"
+					+e_obj.v1+"\t"
+					+e_obj.v2+"\r");
+			}
+			document.write("</XMP>")
+
+		}
+	</script>
+
+
+</body>
+</html>

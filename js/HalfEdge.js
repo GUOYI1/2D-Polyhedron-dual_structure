@@ -2,7 +2,7 @@ function GetEdgeNormal2D(vector)
 {
 	return new THREE.Vector3(-vector.y,vector.x,0).normalize();
 }
-function sortAngle(targetHE, halfedgeArray)
+function HalfEdge_sortAngle(targetHE, halfedgeArray)
 {
         var min_element=-1;
         var min_angle=10;
@@ -32,7 +32,7 @@ function Vertex( id )
 	if(id==undefined)
 		this.id=undefined;
 	else
-		this.id=id;
+		this.id=parseInt(id);
 	this.edge=undefined;
 	this.pos=undefined;
 	this.node=undefined;
@@ -43,7 +43,7 @@ function Face(id)
 	if(id==undefined)
 		this.id=undefined;
 	else
-		this.id=id;
+		this.id=parseInt(id);
 	this.startedge=undefined;
 	this.dual_pos=undefined;
 	this.center_pos=undefined;
@@ -54,7 +54,7 @@ function HalfEdge(id)
 	if(id==undefined)
 		this.id=undefined;
 	else
-		this.id=id;
+		this.id=parseInt(id);
 	this.next=undefined;
 	this.vert=undefined;
 	this.face=undefined;
@@ -65,7 +65,7 @@ function ExternalEdge(id)
 	if(id==undefined)
 		this.id=undefined;
 	else
-		this.id=id;
+		this.id=parseInt(id);
 	this.pair=undefined;
 }
 function Node()
@@ -88,6 +88,7 @@ function Mesh()
 	this.mesh_half_edge=[];
 	this.mesh_vertex=[];
 	this.half_finished=false;
+	this.dual_finished=false;
 	this.dual_geo_center=new THREE.Vector3();
 	// The first element in bound is the min(x,y,z), and the second element is the max(x,y,z);
 	this.bound=[new THREE.Vector3(),new THREE.Vector3()];
@@ -126,6 +127,7 @@ Mesh.prototype.clear = function() {
 	this.mesh_half_edge=[];
 	this.mesh_vertex=[];
 	this.half_finished=false;
+	this.dual_finished=false;
 	this.dual_geo_center=new THREE.Vector3();
 
 	// The first element in bound is the min(x,y,z), and the second element is the max(x,y,z);
@@ -179,7 +181,7 @@ Mesh.prototype.find_2D_Nodes=function(){
     }
 
 
-    //Build the connection between direction map and 
+    //Build the connection between direction map and node face pair
    	var map_index=0;
     for(var i in this.node)
     {
@@ -188,37 +190,35 @@ Mesh.prototype.find_2D_Nodes=function(){
     	// var sort_direction=[]
     	// var thick=[];
     	var sign=1;
-    	var startface=undefined, endface=undefined;
     	do
     	{
     		this.node[i].Sort_Face_ID.push(he.sym.face.id); 
-    		var node_face_pair_obj=new Node_Face_Pair;
+    		var node_face_pair_obj=new Node_Face_Pair();
     	 	node_face_pair_obj.f_p=new THREE.Vector2(he.sym.face.id,he.face.id) 		
     		var l=(new THREE.Vector3().subVectors(he.vert.pos,he.sym.vert.pos));
     		var dir=GetEdgeNormal2D(l);
     		var thick=l.length();
+    		var pair=new THREE.Vector2();
 
     		var index=this.internal_dual_edge_direction_map.findIndex(function(x) { 
-    		var reverse_f_pair=new THREE.Vector2(node_face_pair_obj.f_p.y,node_face_pair_obj.f_p.x);
     		return (x.f_p.x == node_face_pair_obj.f_p.x && x.f_p.y == node_face_pair_obj.f_p.y)
-    				|| (x.f_p.x==reverse_f_pair.x && x.f_p.y==reverse_f_pair.y); });
+    				|| (x.f_p.x==node_face_pair_obj.f_p.y && x.f_p.y==node_face_pair_obj.f_p.x); });
     		if(index==-1)
     		{
 	    		if(node_face_pair_obj.f_p.y>node_face_pair_obj.f_p.x)
 	    		{
 	    			sign=1;
-	    			startface=node_face_pair_obj.f_p.x;
-	    			endface=node_face_pair_obj.f_p.y;
+	    			pair.x=node_face_pair_obj.f_p.x;
+	    			pair.y=node_face_pair_obj.f_p.y;
 	    		}	
 	    		else
 	    		{
 	    			sign=-1;
-	    			startface=node_face_pair_obj.f_p.y;
-	    			endface=node_face_pair_obj.f_p.x;
+	    			pair.x=node_face_pair_obj.f_p.y;
+	    			pair.y=node_face_pair_obj.f_p.x;
 
 	    		}
 	    		var direction_map_obj=new Direction_Map_Obj();
-	    		var pair=new THREE.Vector2(startface,endface)
 	    		var d=new THREE.Vector3(sign*dir.x,sign*dir.y,0);
 	    		direction_map_obj.f_p=pair;
 	    		direction_map_obj.direction_vector=d;
@@ -243,20 +243,27 @@ Mesh.prototype.find_2D_Nodes=function(){
 Mesh.prototype.Produce_dual_structure=function()
 {
 	'use strict'
-	 // var x=numeric.solveLP([1,2,3],                      /* minimize [1,2,3]*x                */
-  //                   [[-1,0,0],[0,-1,0],[0,0,-1]], /* matrix A of inequality constraint */
-  //                   [0,0,0],                      /* RHS b of inequality constraint    */
-  //                   [[1,1,1]],                    /* matrix Aeq of equality constraint */
-  //                   [3]                           /* vector beq of equality constraint */
-  //                   );
+	 
+	 //Using numeric.solveLP(m_C,					/* minimize m_C*x                */
+	 						//m_A,					/* matrix m_A of inequality constraint */
+	 						//m_b,					/* RHS m_b of inequality constraint    */
+	 						//m_Aeq,				/* matrix m_Aeq of equality constraint */
+	 						//m_beq).				/* vector m_beq of equality constraint */
 
-	 //console.log(x.solution)
-	 //Using numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq).
+	 //An easy example
+	 // var x=numeric.solveLP([1,2,3],             /* minimize [1,2,3]*x                */
+//                   [[-1,0,0],[0,-1,0],[0,0,-1]], /* matrix A of inequality constraint */
+//                   [0,0,0],                      /* RHS b of inequality constraint    */
+//                   [[1,1,1]],                    /* matrix Aeq of equality constraint */
+//                   [3]                           /* vector beq of equality constraint */
+//                   );
+	//console.log(x.solution)
 	 if(this.half_finished==false) return;
 	 var node_num_2=this.node.length*2;
 	 var internal_edge_num= this.internal_dual_edge_direction_map.length;
 	 if(node_num_2==0 ||internal_edge_num==0) return;
 	 var m_Aeq=[];
+
 	 for(var i=0;i<node_num_2;i+=2)
 	 {
 	 	m_Aeq[i]=new Array(internal_edge_num);
@@ -285,15 +292,15 @@ Mesh.prototype.Produce_dual_structure=function()
 	 var m_b=[];
 	 for(var i=0;i<internal_edge_num;i++)
 	 	m_b[i]=-1;
-
+	 var solution=new Object();
 	 var m_beq=[];
-	 for(var i=0;i<node_num_2;i++)
+	 for(var i=0;i<m_Aeq.length;i++)
 	 	m_beq[i]=0;
 
 	 var m_C=[];	 
 	 for(var i=0;i<internal_edge_num;i++)
 	 	m_C[i]=1;
-	 var x=numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq);   
+	var x=numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq);   
 	 for(var i=0;i<internal_edge_num;i++)
 	 {
 	 	var length_map_obj=new Length_Map_Obj();
@@ -302,9 +309,10 @@ Mesh.prototype.Produce_dual_structure=function()
 	 	length_map_obj.length=x.solution[i];
 	 	this.internal_dual_edge_length_map.push(length_map_obj);
 	 }
-
-	 this.mesh_face[0].dual_pos=new THREE.Vector3(0,0,0);
-	 this.computeDualPos(0);
+	 var startId=0;
+	 if(this.external_face_ID==0) startId=1;
+	 this.mesh_face[startId].dual_pos=new THREE.Vector3(0,0,0);
+	 this.computeDualPos(startId);
 	 this.dual_geo_center.divideScalar(this.mesh_face.length-1);
 	 this.computeExDualEdge();
 
@@ -336,12 +344,9 @@ Mesh.prototype.Produce_dual_structure=function()
 	 this.dual_geo_center=new THREE.Vector3().copy(this.mesh_face[this.external_face_ID].center_pos);
 	 for(var i in this.internal_dual_edge_length_map)
 	 	this.internal_dual_edge_length_map[i].length*=scale;
+
+	 this.dual_finished=true;
 	
-
-
-
-
-
 }
 
 Mesh.prototype.computeDualPos=function(startFace_id)
@@ -384,7 +389,7 @@ Mesh.prototype.computeDualPos=function(startFace_id)
 	    		
 	    		this.mesh_face[neighbour_ID].dual_pos=dual_p;
 	    		if(dual_p.x<this.dual_bound[0].x)
-                	this.dual_bound[0].x=dual_p.x
+                	this.dual_bound[0].x=dual_p.x;
             	else if(dual_p.x>this.dual_bound[1].x)
                 	this.dual_bound[1].x=dual_p.x;
 

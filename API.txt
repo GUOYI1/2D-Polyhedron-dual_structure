@@ -3,3 +3,4 @@
 2. idx
 3. Color and thickness
 4. Raytracing;
+5.Ìø×ªÊ±µÄBUG

@@ -205,7 +205,7 @@ Mesh.prototype.BaryCentricSubdivision=function(f_id)
 		var A2=edge.x;
 		var B2=edge.y;
 		var C2=-A2*original_dual_pos.x-B2*original_dual_pos.y;
-		solution=Line_intersection(A1,B1,C1,A2,B2,C2);
+		solution=Line_intersection_2D(A1,B1,C1,A2,B2,C2);
 		dual_pos_start=new THREE.Vector3(solution[0],solution[1],0);
 		perpendecular_dual_direciton=new THREE.Vector3().subVectors(he.next.vert.pos,he.next.sym.vert.pos);
 		he.face.dual_pos=dual_pos_start;
@@ -227,7 +227,6 @@ Mesh.prototype.BaryCentricSubdivision=function(f_id)
 	//Rescale the dual pos of new faces
 	if(min_original_length==undefined) min_original_length=ex_scale;
 	var scale=min_original_length/(3*max_dual_length);
-	console.log(scale);
 	do
 	{
 		he.face.dual_pos.x=original_dual_pos.x+(he.face.dual_pos.x-original_dual_pos.x)*scale;

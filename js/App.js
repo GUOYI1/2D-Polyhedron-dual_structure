@@ -1,5 +1,6 @@
 (function() {
     'use strict'
+
     var views = [
     {
         left: 0,
@@ -40,6 +41,7 @@
     }
     ];
     var canvas,idx_canvas;
+    var result_viewer;
     var ctx;
     var scene1,scene2;
     var camera;
@@ -68,7 +70,8 @@
     var orbit;
     var guiList={
         LoadGeometry:undefined,
-        Barycentric_Subdivision:undefined 
+        Barycentric_Subdivision:undefined,
+        Export_Dual_Data: undefined
     };
     var highlight_edge=undefined;
     var highlight_face=undefined;
@@ -90,6 +93,74 @@
 
         reader.readAsText(file, "UTF-8");
         reader.onload=buildMeshStructure;
+    }
+    function StoreDualData()
+    {
+        'use strict'
+        localStorage.clear();
+        if(!mesh.dual_finished) alert("Dual_Structure cannot be computed");
+        var v=new Array();
+        var e=new Array();
+
+        for(var i in mesh.internal_dual_edge_direction_map)
+        {
+            var v1_index=mesh.internal_dual_edge_direction_map[i].f_p.x;
+            var v2_index=mesh.internal_dual_edge_direction_map[i].f_p.y;
+            if(v1_index>mesh.external_face_ID) v1_index--;
+            if(v2_index>mesh.external_face_ID) v2_index--;
+            var e_obj={
+                index:mesh.internal_dual_edge_direction_map[i].id,
+                v1:v1_index,
+                v2:v2_index
+            }
+            e.push(JSON.stringify(e_obj));
+        }
+        for(var i in mesh.mesh_face)
+        {
+            var f=mesh.mesh_face[i];
+            if(f.id==mesh.external_face_ID) continue;
+            var idx=f.id;
+            if(f.id>mesh.external_face_ID) idx--;
+            var v_obj={
+                index: idx,
+                x:f.dual_pos.x,
+                y:f.dual_pos.y,
+                z:f.dual_pos.z
+            }
+            v.push(JSON.stringify(v_obj));        
+        }
+
+        for(var i in mesh.mesh_face)
+        {
+            var f=mesh.mesh_face[i];
+            if(f.external_dual_edge.length>0)
+            {
+                for(var j in f.external_dual_edge)
+                {
+                    var V_ID=v.length;
+                    var E_ID=e.length;
+                    var v_obj={
+                        index: V_ID,
+                        x:f.dual_pos.x+f.external_dual_edge[j].x,
+                        y:f.dual_pos.y+f.external_dual_edge[j].y,
+                        z:f.dual_pos.z+f.external_dual_edge[j].z
+                    }
+                    v.push(JSON.stringify(v_obj));  
+                    var FID=f.id;
+                    if(FID>mesh.external_face_ID) FID--;
+                    var e_obj={
+                        index:E_ID,
+                        v1:FID,
+                        v2:V_ID
+                    }
+                    e.push(JSON.stringify(e_obj));
+                }
+            }
+        }    
+        localStorage.setItem("Vertices",JSON.stringify(v));
+        localStorage.setItem("Edges",JSON.stringify(e));
+        //localStorage.setItem("Edges",e);
+
     }
     function updateDualStructure()
     {
@@ -181,7 +252,6 @@
                 alert("Z coords must be 0");
                 return;
             }
-            console.log(v);
             mesh.mesh_vertex[v]=new Vertex(v);
             mesh.mesh_vertex[v].pos=new THREE.Vector3(
                 json.vertices[v][0],
@@ -221,7 +291,7 @@
         //read edges
         for(var e in json.edges)
         {
-            if(json.edges[e][0]!=undefined && json.edges[e][0]!=undefined)
+            if(json.edges[e][0]!=undefined && json.edges[e][1]!=undefined)
             {
                 edgepair[e]=new THREE.Vector2(
                     json.edges[e][0],
@@ -271,7 +341,7 @@
         for(var i in mesh.mesh_half_edge)
         {
             var halfedgeGroup=vertex_edge_map[mesh.mesh_half_edge[i].vert.id];
-            var next_idx=sortAngle(mesh.mesh_half_edge[i],halfedgeGroup);
+            var next_idx=HalfEdge_sortAngle(mesh.mesh_half_edge[i],halfedgeGroup);
             mesh.mesh_half_edge[i].next=halfedgeGroup[next_idx];
         }
         //build face
@@ -329,15 +399,14 @@
         var dual_range=new THREE.Vector3().subVectors(mesh.dual_bound[1],mesh.dual_bound[0]);
         var mesh_aspect=views[1].window.width / views[1].window.height;
         var dual_aspect=views[0].window.width / views[0].window.height;
-        if(mesh_range.x>mesh_range.y*mesh_aspect)
-            mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/mesh_range.x;
+        if(mesh_aspect<=1)
+            mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*mesh_range.length());
         else
-            mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(mesh_aspect*mesh_range.y);
-        
-        if(dual_range.x>dual_range.y*dual_aspect)
-            dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/dual_range.x;
+            mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*mesh_aspect*mesh_range.length());
+        if(dual_aspect<=1)
+            dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*dual_range.length());
         else
-            dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(dual_aspect*dual_range.y);
+            dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*dual_aspect*dual_range.length());
         //console.log(mesh_scale);
         for(var e in RenderGeometry)
         {
@@ -366,6 +435,9 @@
         scene2.add(highlight_edge);
         scene2.add(highlight_face);
         scene2.add(highlight_point);
+
+        //Store the result
+        StoreDualData();
         console.log(mesh);
 
   
@@ -640,9 +712,16 @@
         guiList.Barycentric_Subdivision={
             Barycentric_Subdiv: Execute_Barycentric_Subdivision
         }
+        guiList.Export_Dual_Structure={
+            Export_Dual:function(){
+                document.getElementById("Dual_Result").click();
+            }
+        }
+
         datgui=new dat.GUI();
         datgui.add(guiList.LoadGeometry,'Load_geometry_file');
         datgui.add(guiList.Barycentric_Subdivision,'Barycentric_Subdiv');
+        datgui.add(guiList.Export_Dual_Structure,'Export_Dual');
 
         
         viewResize();
