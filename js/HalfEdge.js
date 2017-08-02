@@ -1,7 +1,3 @@
-function GetEdgeNormal2D(vector)
-{
-	return new THREE.Vector3(-vector.y,vector.x,0).normalize();
-}
 function HalfEdge_sortAngle(targetHE, halfedgeArray)
 {
         var min_element=-1;
@@ -282,6 +278,7 @@ Mesh.prototype.Produce_dual_structure=function()
 	 		m_Aeq[i+1][id]=sign*this.internal_dual_edge_direction_map[id].direction_vector.y;
 	 	}
 	 }
+	 //m_Aeq=Maxium_Linear_Independent_Group(m_Aeq);
 	 var m_A=[];
 	 for(var i=0;i<internal_edge_num;i++)
 	 {
@@ -363,13 +360,18 @@ Mesh.prototype.computeDualPos=function(startFace_id)
 			if(he.sym.face.dual_pos==undefined)
 			{
 				var neighbour_ID=he.sym.face.id;
-				var f_pair=new THREE.Vector2(startFace_id,neighbour_ID)
+				var f_pair=new THREE.Vector2(startFace_id,neighbour_ID);
+				var f_pair_obj=new THREE.Vector2();
 				var dual_p=undefined;
 				var sign=1;
-				if(startFace_id<neighbour_ID)
+				if(startFace_id<neighbour_ID){
 	    			sign=1;
-	    		else
+	    			f_pair_obj=new THREE.Vector2().copy(f_pair);
+				}
+	    		else{
 	    			sign=-1;
+	    			f_pair_obj=new THREE.Vector2(f_pair.y,f_pair.x);
+	    		}
 				var index=this.internal_dual_edge_direction_map.findIndex(function(x) { 
 		    		return (x.f_p.x== f_pair.x && x.f_p.y == f_pair.y)
 		    				|| (x.f_p.x==f_pair.y && x.f_p.y==f_pair.x); 
@@ -378,9 +380,21 @@ Mesh.prototype.computeDualPos=function(startFace_id)
 	    		if(index==-1)
 	    		{
 	    			var he_l=new THREE.Vector3().subVectors(he.sym.pos,he.pos);
-	    			var dis_scale=(new THREE.Vector3().subVectors(he.sym.face.center_pos,he.face.center_pos)).length();
-	    			var dir=GetEdgeNormal2D(he_l).multiplyScalar(dis_scale);
-	    			dual_p=new THREE.Vector3().addVectors(startPos,dir);
+	    			var dir=GetEdgeNormal2D(he_l).multiplyScalar(sign);	    			
+	    			var direction_map_obj=new Direction_Map_Obj();
+            		var length_map_obj=new Length_Map_Obj();
+
+			        direction_map_obj.f_p=f_pair_obj;
+			        direction_map_obj.direction_vector=dir;
+			        direction_map_obj.id=this.internal_dual_edge_direction_map.length;
+			        direction_map_obj.thick_value=he_l.length();
+			        this.internal_dual_edge_direction_map.push(direction_map_obj);
+
+			        length_map_obj.id=this.internal_dual_edge_length_map.length;
+			        length_map_obj.f_p=f_pair_obj;
+			        length_map_obj.length=1;
+			        this.internal_dual_edge_length_map.push(length_map_obj);
+			        dual_p=new THREE.Vector3().addVectors(startPos,dir);
 	    		}
 	    		else
 	    			dual_p=new THREE.Vector3(startPos.x+sign*this.internal_dual_edge_length_map[index].length*this.internal_dual_edge_direction_map[index].direction_vector.x,

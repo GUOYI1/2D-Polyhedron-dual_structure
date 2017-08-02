@@ -663,16 +663,16 @@ THREE.OrbitControls = function ( object, domElement ) {
 		event.preventDefault();
 
 		switch ( event.button ) {
+			//For 2D case, we disable the rotation
+			// case scope.mouseButtons.ORBIT:
 
-			case scope.mouseButtons.ORBIT:
+			// 	if ( scope.enableRotate === false ) return;
 
-				if ( scope.enableRotate === false ) return;
+			// 	handleMouseDownRotate( event );
 
-				handleMouseDownRotate( event );
+			// 	state = STATE.ROTATE;
 
-				state = STATE.ROTATE;
-
-				break;
+			// 	break;
 
 			case scope.mouseButtons.ZOOM:
 
