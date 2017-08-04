@@ -1,5 +1,4 @@
-function HalfEdge_sortAngle(targetHE, halfedgeArray)
-{
+function HalfEdge_sortAngle(targetHE, halfedgeArray){
         var min_element=-1;
         var min_angle=10;
         var target=new THREE.Vector3(targetHE.sym.vert.pos.x-targetHE.vert.pos.x,
@@ -23,8 +22,7 @@ function HalfEdge_sortAngle(targetHE, halfedgeArray)
         }
         return min_element;
 }
-function Vertex( id )
-{
+function Vertex( id ){
 	if(id==undefined)
 		this.id=undefined;
 	else
@@ -34,8 +32,7 @@ function Vertex( id )
 	this.node=undefined;
 	this.external_node=undefined;
 }
-function Face(id)
-{
+function Face(id){
 	if(id==undefined)
 		this.id=undefined;
 	else
@@ -45,8 +42,7 @@ function Face(id)
 	this.center_pos=undefined;
 	this.external_dual_edge=[];
 }
-function HalfEdge(id)
-{
+function HalfEdge(id){
 	if(id==undefined)
 		this.id=undefined;
 	else
@@ -56,16 +52,14 @@ function HalfEdge(id)
 	this.face=undefined;
 	this.sym=undefined;
 }
-function ExternalEdge(id)
-{
+function ExternalEdge(id){
 	if(id==undefined)
 		this.id=undefined;
 	else
 		this.id=parseInt(id);
 	this.pair=undefined;
 }
-function Node()
-{
+function Node(){
 	this.Sort_Face_ID=[];
 	this.face_pair=[];
 	this.vert=undefined;
@@ -74,12 +68,10 @@ Node.prototype.findFacePair=function(f_pair){
 	var inverse_pair=new THREE.Vector2(f_pair.y,f_pair.x)
 	var result=0
 }
-function External_Node()
-{
+function External_Node(){
 	this.vert=undefined;
 }
-function Mesh()
-{
+function Mesh(){
 	this.mesh_face=[];
 	this.mesh_half_edge=[];
 	this.mesh_vertex=[];
@@ -100,20 +92,17 @@ function Mesh()
 	this.external_face_ID=undefined;
 
 }
-function Node_Face_Pair()
-{
+function Node_Face_Pair(){
 	this.f_p=undefined;
 	this.dual_edge_ID=undefined;
 }
-function Direction_Map_Obj()
-{
+function Direction_Map_Obj(){
 	this.f_p=undefined;
 	this.id=undefined;
 	this.direction_vector=undefined;
 	this.thick_value=undefined;
 }
-function Length_Map_Obj()
-{
+function Length_Map_Obj(){
 	this.f_p=undefined;
 	this.id=undefined;
 	this.length=undefined
@@ -140,13 +129,150 @@ Mesh.prototype.clear = function() {
 	this.external_face_ID=undefined;
 
 };
+Mesh.prototype.buildHalfEdgeStructure=function(vertices,edges){
+	this.clear();
+	var edgepair=[];
+    var vertex_edge_count=[];//Used to record the number of edges start from each point
+    var vertex_edge_map=[];//Used to record the edges start from each point
+    var h_id=0,e_id=0;
+    //read vertices
+    for(var v in vertices){
+        if(vertices[v][2]!=0.0){
+            alert("Z coords must be 0");
+            return;
+        }
+        this.mesh_vertex[v]=new Vertex(v);
+        this.mesh_vertex[v].pos=new THREE.Vector3(
+            vertices[v][0],
+            vertices[v][1],
+            vertices[v][2]); 
+        if(v==0){
+            this.bound[0].x=vertices[v][0];
+            this.bound[0].y=vertices[v][1];
+            this.bound[0].z=vertices[v][2];
+            this.bound[1].x=vertices[v][0];
+            this.bound[1].y=vertices[v][1];
+            this.bound[1].z=vertices[v][2];
+        }
+        else{
+            if(vertices[v][0]<this.bound[0].x)
+                this.bound[0].x=vertices[v][0]
+            else if(vertices[v][0]>this.bound[1].x)
+                this.bound[1].x=vertices[v][0];
+
+            if(vertices[v][1]<this.bound[0].y)
+                this.bound[0].y=vertices[v][1];
+            else if(vertices[v][1]>this.bound[1].y)
+                this.bound[1].y=vertices[v][1];
+
+            if(vertices[v][2]<this.bound[0].z)
+                this.bound[0].z=vertices[v][2]
+            else if(vertices[v][2]>this.bound[1].z)
+                this.bound[1].z=vertices[v][2];
+        }
+        vertex_edge_count[v]=0;
+        vertex_edge_map[v]=new Array();
+    }
+    
+
+    //read edges
+    for(var e in edges){
+        if(edges[e][0]!=undefined && edges[e][1]!=undefined){
+            edgepair[e]=new THREE.Vector2(
+                edges[e][0],
+                edges[e][1]);
+            vertex_edge_count[edges[e][0]]+=1;
+            vertex_edge_count[edges[e][1]]+=1;
+        }
+
+    }
+    //building external edges and half edges
+    for(var e in edgepair){       
+        if(vertex_edge_count[edgepair[e].x]==1 || vertex_edge_count[edgepair[e].y]==1){
+            //building external edges
+            var ex_edge=new ExternalEdge(e_id);
+            ex_edge.pair=new THREE.Vector2(edgepair[e].x,edgepair[e].y);
+            this.external_edge[e_id]=ex_edge;
+            e_id+=1;
+        } 
+        else{
+            //building half_edge
+            var he=new HalfEdge(h_id);
+            var he_sym=new HalfEdge(h_id+1);
+            
+            he.vert=this.mesh_vertex[edgepair[e].x];
+            he_sym.vert=this.mesh_vertex[edgepair[e].y];
+            vertex_edge_map[edgepair[e].x].push(he_sym);
+            vertex_edge_map[edgepair[e].y].push(he);
+            he.sym=he_sym;
+            he_sym.sym=he;  
+            this.mesh_half_edge[h_id]=he;
+            this.mesh_half_edge[h_id+1]=he_sym;
+            h_id+=2;
+        }   
+ 
+    }
+
+    //find Next
+    for(var i in this.mesh_half_edge)
+    {
+        var halfedgeGroup=vertex_edge_map[this.mesh_half_edge[i].vert.id];
+        var next_idx=HalfEdge_sortAngle(this.mesh_half_edge[i],halfedgeGroup);
+        this.mesh_half_edge[i].next=halfedgeGroup[next_idx];
+    }
+
+    //build face
+    var f_id=0;
+    for(var i in this.mesh_half_edge)
+    {
+        
+        if(this.mesh_half_edge[i].face==undefined)
+        {
+            var he=this.mesh_half_edge[i];
+            var edge_count=0;
+            var sum=new THREE.Vector3(0,0,0);
+            var f=new Face(f_id);
+            f.startedge=he;
+            this.mesh_face[f_id]=f;
+            do
+            {
+                he.face=f;
+                sum.add(he.vert.pos);
+                edge_count+=1;
+                he=he.next;
+            }while(he!=this.mesh_half_edge[i])
+            f.center_pos=new THREE.Vector3(sum.x/edge_count,sum.y/edge_count,sum.z/edge_count);
+
+            var v1=(new THREE.Vector3().subVectors(he.vert.pos,f.center_pos)).normalize(); 
+            var v2=(new THREE.Vector3().subVectors(he.vert.pos,he.sym.vert.pos)).normalize(); 
+            if(v1.cross(v2).z<0)
+                this.external_face_ID=f_id; 
+            else
+            {
+                do
+                {
+                    if(he.vert.edge==undefined)
+                        he.vert.edge=he;
+                    he=he.next;
+                }while(he!=this.mesh_half_edge[i])
+            }
+            f_id+=1;
+        }
+    }
+    if(this.external_face_ID==undefined)
+    {
+        alert("No External Face.");
+        return;
+    }    
+
+    this.half_finished=true;	
+}
 
 Mesh.prototype.find_2D_Nodes=function(){
 	'use strict'
 	if(this.half_finished==false) return;
 	var v_flag=[];
-    for(var i in this.mesh_vertex)
-    {
+    for(var i in this.mesh_vertex){
         if(this.mesh_vertex[i].edge==undefined)
             v_flag[i]=false;
         else
@@ -165,8 +291,7 @@ Mesh.prototype.find_2D_Nodes=function(){
     }while(he!=this.mesh_face[this.external_face_ID].startedge)
 
     //find out internal node
-    for(var i in v_flag)
-    {
+    for(var i in v_flag){
         if(v_flag[i]==true)
         {
             var node=new Node();
@@ -179,12 +304,9 @@ Mesh.prototype.find_2D_Nodes=function(){
 
     //Build the connection between direction map and node face pair
    	var map_index=0;
-    for(var i in this.node)
-    {
+    for(var i in this.node){
     	var start=this.node[i].vert.edge
     	var he=start;
-    	// var sort_direction=[]
-    	// var thick=[];
     	var sign=1;
     	do
     	{
@@ -199,16 +321,13 @@ Mesh.prototype.find_2D_Nodes=function(){
     		var index=this.internal_dual_edge_direction_map.findIndex(function(x) { 
     		return (x.f_p.x == node_face_pair_obj.f_p.x && x.f_p.y == node_face_pair_obj.f_p.y)
     				|| (x.f_p.x==node_face_pair_obj.f_p.y && x.f_p.y==node_face_pair_obj.f_p.x); });
-    		if(index==-1)
-    		{
-	    		if(node_face_pair_obj.f_p.y>node_face_pair_obj.f_p.x)
-	    		{
+    		if(index==-1){
+	    		if(node_face_pair_obj.f_p.y>node_face_pair_obj.f_p.x){
 	    			sign=1;
 	    			pair.x=node_face_pair_obj.f_p.x;
 	    			pair.y=node_face_pair_obj.f_p.y;
 	    		}	
-	    		else
-	    		{
+	    		else{
 	    			sign=-1;
 	    			pair.x=node_face_pair_obj.f_p.y;
 	    			pair.y=node_face_pair_obj.f_p.x;
@@ -236,8 +355,7 @@ Mesh.prototype.find_2D_Nodes=function(){
 
 }
 
-Mesh.prototype.Produce_dual_structure=function()
-{
+Mesh.prototype.Produce_dual_structure=function(){
 	'use strict'
 	 
 	 //Using numeric.solveLP(m_C,					/* minimize m_C*x                */
@@ -260,14 +378,12 @@ Mesh.prototype.Produce_dual_structure=function()
 	 if(node_num_2==0 ||internal_edge_num==0) return;
 	 var m_Aeq=[];
 
-	 for(var i=0;i<node_num_2;i+=2)
-	 {
+	 for(var i=0;i<node_num_2;i+=2){
 	 	m_Aeq[i]=new Array(internal_edge_num);
 	 	m_Aeq[i+1]=new Array(internal_edge_num);
 	 	m_Aeq[i].fill(0);
 	 	m_Aeq[i+1].fill(0);
-	 	for(var j=0;j<this.node[i/2].face_pair.length;j++)
-	 	{
+	 	for(var j=0;j<this.node[i/2].face_pair.length;j++)	{
 	 		var sign=0;
 	 		var id=this.node[i/2].face_pair[j].dual_edge_ID;
 	 		if(this.node[i/2].face_pair[j].f_p.x==this.internal_dual_edge_direction_map[id].f_p.x &&
@@ -280,8 +396,7 @@ Mesh.prototype.Produce_dual_structure=function()
 	 }
 	 //m_Aeq=Maxium_Linear_Independent_Group(m_Aeq);
 	 var m_A=[];
-	 for(var i=0;i<internal_edge_num;i++)
-	 {
+	 for(var i=0;i<internal_edge_num;i++) {
 	 	m_A[i]=new Array(internal_edge_num);
 	 	m_A[i].fill(0);
 	 	m_A[i][i]=-1;
@@ -297,9 +412,10 @@ Mesh.prototype.Produce_dual_structure=function()
 	 var m_C=[];	 
 	 for(var i=0;i<internal_edge_num;i++)
 	 	m_C[i]=1;
-	var x=numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq);   
-	 for(var i=0;i<internal_edge_num;i++)
-	 {
+	var x=numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq); 
+	console.log(x);
+
+	 for(var i=0;i<internal_edge_num;i++) {
 	 	var length_map_obj=new Length_Map_Obj();
 	 	length_map_obj.id=i;
 	 	length_map_obj.f_p=this.internal_dual_edge_direction_map[i].f_p;
@@ -320,8 +436,7 @@ Mesh.prototype.Produce_dual_structure=function()
 
 	 var scale=l1.length()/l2.length()*0.75;
 
-	 for(var i in this.mesh_face)
-	 {	
+	 for(var i in this.mesh_face) {	
 	 	if(i==this.external_face_ID) continue;
 	 	this.mesh_face[i].dual_pos.sub(this.dual_geo_center)
 	 	this.mesh_face[i].dual_pos.multiplyScalar(scale);
@@ -332,8 +447,7 @@ Mesh.prototype.Produce_dual_structure=function()
 
 
 	 
-	 for(var i in this.dual_bound)
-	 {
+	 for(var i in this.dual_bound) {
 	  	this.dual_bound[i].sub(this.dual_geo_center);
 	  	this.dual_bound[i].multiplyScalar(scale);
 	  	this.dual_bound[i].add(this.mesh_face[this.external_face_ID].center_pos);
@@ -346,19 +460,15 @@ Mesh.prototype.Produce_dual_structure=function()
 	
 }
 
-Mesh.prototype.computeDualPos=function(startFace_id)
-{
+Mesh.prototype.computeDualPos=function(startFace_id){
 	if(this.internal_dual_edge_length_map.length==0) return;
 	var startPos=this.mesh_face[startFace_id].dual_pos;
 	if(startPos==undefined) return;
 	var start_he=this.mesh_face[startFace_id].startedge;
 	var he=start_he;
-	do
-	{
-		if(he.sym.face.id!=this.external_face_ID)
-		{
-			if(he.sym.face.dual_pos==undefined)
-			{
+	do{
+		if(he.sym.face.id!=this.external_face_ID){
+			if(he.sym.face.dual_pos==undefined)	{
 				var neighbour_ID=he.sym.face.id;
 				var f_pair=new THREE.Vector2(startFace_id,neighbour_ID);
 				var f_pair_obj=new THREE.Vector2();
@@ -377,9 +487,8 @@ Mesh.prototype.computeDualPos=function(startFace_id)
 		    				|| (x.f_p.x==f_pair.y && x.f_p.y==f_pair.x); 
 	    		});
 
-	    		if(index==-1)
-	    		{
-	    			var he_l=new THREE.Vector3().subVectors(he.sym.pos,he.pos);
+	    		if(index==-1){
+	    			var he_l=new THREE.Vector3().subVectors(he.sym.vert.pos,he.vert.pos);
 	    			var dir=GetEdgeNormal2D(he_l).multiplyScalar(sign);	    			
 	    			var direction_map_obj=new Direction_Map_Obj();
             		var length_map_obj=new Length_Map_Obj();
@@ -417,7 +526,6 @@ Mesh.prototype.computeDualPos=function(startFace_id)
 		        else if(dual_p.z>this.dual_bound[1].z)
 		            this.dual_bound[1].z=dual_p.z;
 
-
 	    		this.dual_geo_center.add(this.mesh_face[neighbour_ID].dual_pos);
 	    		this.computeDualPos(neighbour_ID);
 			}
@@ -425,8 +533,7 @@ Mesh.prototype.computeDualPos=function(startFace_id)
 		he=he.next;
 	}while(he!=start_he);
 }
-Mesh.prototype.computeExDualEdge=function()
-{
+Mesh.prototype.computeExDualEdge=function(){
 	if(this.external_face_ID==undefined) return;
 	var start=this.mesh_face[this.external_face_ID].startedge;
 	var he=start;
@@ -436,4 +543,5 @@ Mesh.prototype.computeExDualEdge=function()
 		he=he.next;
 	}while(he!=start);
 }
+
 
