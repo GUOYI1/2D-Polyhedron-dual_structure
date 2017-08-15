@@ -1,26 +1,26 @@
 function HalfEdge_sortAngle(targetHE, halfedgeArray){
-        var min_element=-1;
-        var min_angle=10;
-        var target=new THREE.Vector3(targetHE.sym.vert.pos.x-targetHE.vert.pos.x,
-                                    targetHE.sym.vert.pos.y-targetHE.vert.pos.y,
-                                    targetHE.sym.vert.pos.z-targetHE.vert.pos.z).normalize();
-        for(var e in halfedgeArray)
+    var min_element=-1;
+    var min_angle=10;
+    var target=new THREE.Vector3(targetHE.sym.vert.pos.x-targetHE.vert.pos.x,
+                                targetHE.sym.vert.pos.y-targetHE.vert.pos.y,
+                                targetHE.sym.vert.pos.z-targetHE.vert.pos.z).normalize();
+    for(var e in halfedgeArray)
+    {
+        if(targetHE.sym==halfedgeArray[e]) continue;
+        var vector=new THREE.Vector3(halfedgeArray[e].vert.pos.x-halfedgeArray[e].sym.vert.pos.x,
+                                    halfedgeArray[e].vert.pos.y-halfedgeArray[e].sym.vert.pos.y,
+                                    halfedgeArray[e].vert.pos.z-halfedgeArray[e].sym.vert.pos.z).normalize();
+        var angle=Math.acos(target.dot(vector))
+        // var crossproduct=
+        if((new THREE.Vector3().crossVectors(target,vector)).z>0)
+            angle=2.0*Math.PI-angle;    
+        if(angle<min_angle)
         {
-            if(targetHE.sym==halfedgeArray[e]) continue;
-            var vector=new THREE.Vector3(halfedgeArray[e].vert.pos.x-halfedgeArray[e].sym.vert.pos.x,
-                                        halfedgeArray[e].vert.pos.y-halfedgeArray[e].sym.vert.pos.y,
-                                        halfedgeArray[e].vert.pos.z-halfedgeArray[e].sym.vert.pos.z).normalize();
-            var angle=Math.acos(target.dot(vector))
-            // var crossproduct=
-            if((new THREE.Vector3().crossVectors(target,vector)).z>0)
-                angle=2.0*Math.PI-angle;    
-            if(angle<min_angle)
-            {
-                min_angle=angle;
-                min_element=e;
-            }
+            min_angle=angle;
+            min_element=e;
         }
-        return min_element;
+    }
+    return min_element;
 }
 function Vertex( id ){
 	if(id==undefined)
@@ -51,14 +51,16 @@ function HalfEdge(id){
 	this.vert=undefined;
 	this.face=undefined;
 	this.sym=undefined;
+	this.external=false;
+	this.connected=false;
 }
-function ExternalEdge(id){
-	if(id==undefined)
-		this.id=undefined;
-	else
-		this.id=parseInt(id);
-	this.pair=undefined;
-}
+// function ExternalEdge(id){
+// 	if(id==undefined)
+// 		this.id=undefined;
+// 	else
+// 		this.id=parseInt(id);
+// 	this.pair=undefined;
+// }
 function Node(){
 	this.Sort_Face_ID=[];
 	this.face_pair=[];
@@ -71,7 +73,7 @@ Node.prototype.findFacePair=function(f_pair){
 function External_Node(){
 	this.vert=undefined;
 }
-function Mesh(){
+function Mesh(type){
 	this.mesh_face=[];
 	this.mesh_half_edge=[];
 	this.mesh_vertex=[];
@@ -82,7 +84,7 @@ function Mesh(){
 	this.bound=[new THREE.Vector3(),new THREE.Vector3()];
 	this.dual_bound=[new THREE.Vector3(),new THREE.Vector3()];
 	
-	this.external_edge=[];	
+	// this.external_edge=[];	
 	this.node=[];
 	this.external_node=[];
 
@@ -90,6 +92,7 @@ function Mesh(){
 	this.internal_dual_edge_direction_map=[];
 
 	this.external_face_ID=undefined;
+	this.type=(type=="Form"? "Form":"Force");
 
 }
 function Node_Face_Pair(){
@@ -136,9 +139,10 @@ Mesh.prototype.buildHalfEdgeStructure=function(vertices,edges){
     var vertex_edge_map=[];//Used to record the edges start from each point
     var h_id=0,e_id=0;
     //read vertices
+    var z=vertices[0][2];
     for(var v in vertices){
-        if(vertices[v][2]!=0.0){
-            alert("Z coords must be 0");
+        if(vertices[v][2]!=z){
+            alert("Z coords must be same for all vertices");
             return;
         }
         this.mesh_vertex[v]=new Vertex(v);
@@ -186,75 +190,98 @@ Mesh.prototype.buildHalfEdgeStructure=function(vertices,edges){
         }
 
     }
-    //building external edges and half edges
-    for(var e in edgepair){       
+    //building half edges for external edges internal edges
+    for(var e in edgepair){    
+        var he=new HalfEdge(h_id);
+        var he_sym=new HalfEdge(h_id+1);
         if(vertex_edge_count[edgepair[e].x]==1 || vertex_edge_count[edgepair[e].y]==1){
-            //building external edges
-            var ex_edge=new ExternalEdge(e_id);
-            ex_edge.pair=new THREE.Vector2(edgepair[e].x,edgepair[e].y);
-            this.external_edge[e_id]=ex_edge;
-            e_id+=1;
+        	if(this.type=="Force") {
+        		continue;
+        	}
+        	else{
+        		he.external=true;
+        		he_sym.external=true;
+        	}
         } 
-        else{
-            //building half_edge
-            var he=new HalfEdge(h_id);
-            var he_sym=new HalfEdge(h_id+1);
-            
-            he.vert=this.mesh_vertex[edgepair[e].x];
-            he_sym.vert=this.mesh_vertex[edgepair[e].y];
-            vertex_edge_map[edgepair[e].x].push(he_sym);
-            vertex_edge_map[edgepair[e].y].push(he);
-            he.sym=he_sym;
-            he_sym.sym=he;  
-            this.mesh_half_edge[h_id]=he;
-            this.mesh_half_edge[h_id+1]=he_sym;
-            h_id+=2;
-        }   
- 
+        
+        he.vert=this.mesh_vertex[edgepair[e].x];
+        he_sym.vert=this.mesh_vertex[edgepair[e].y];
+        vertex_edge_map[edgepair[e].x].push(he_sym);
+        vertex_edge_map[edgepair[e].y].push(he);
+        he.sym=he_sym;
+        he_sym.sym=he;  
+        this.mesh_half_edge[h_id]=he;
+        this.mesh_half_edge[h_id+1]=he_sym;
+        h_id+=2;
     }
 
     //find Next
-    for(var i in this.mesh_half_edge)
-    {
+    var ex_start=undefined;
+    for(var i in this.mesh_half_edge){
         var halfedgeGroup=vertex_edge_map[this.mesh_half_edge[i].vert.id];
         var next_idx=HalfEdge_sortAngle(this.mesh_half_edge[i],halfedgeGroup);
-        this.mesh_half_edge[i].next=halfedgeGroup[next_idx];
+        if(next_idx!=-1)
+        	this.mesh_half_edge[i].next=halfedgeGroup[next_idx];
+        else if(ex_start==undefined  && this.type=="Form"){
+        	ex_start=this.mesh_half_edge[i];
+        }
+    }
+    if(ex_start!=undefined){
+    	var start=ex_start;
+    	var pre=undefined;
+    	var lead=undefined;
+    	do{
+    		var he_ex=start.sym;
+    		while(he_ex.next)
+    			he_ex=he_ex.next;
+    		var he=new HalfEdge(this.mesh_half_edge.length);
+    		var he_sym=new HalfEdge(this.mesh_half_edge.length+1);
+    		he.vert=start.vert;
+    		he_sym.vert=he_ex.vert;
+    		he.external=true;
+    		he_sym.external=true;
+    		he.connected=true;
+    		he_sym.connected=true;
+    		he.sym=he_sym;
+    		he_sym.sym=he;
+    		he_ex.next=he;
+    		he.next=start.sym;
+    		start=he_ex;
+    		if(pre!=undefined) pre.next=he_sym;
+    		if(lead==undefined) lead=he_sym;
+    		pre=he_sym;
+    		this.mesh_half_edge.push(he);
+    		this.mesh_half_edge.push(he_sym);
+    	}while(start!=ex_start);
+    	this.mesh_half_edge[this.mesh_half_edge.length-1].next=lead;
     }
 
     //build face
     var f_id=0;
-    for(var i in this.mesh_half_edge)
-    {
+    for(var i in this.mesh_half_edge) {
         
-        if(this.mesh_half_edge[i].face==undefined)
-        {
+        if(this.mesh_half_edge[i].face==undefined) {
             var he=this.mesh_half_edge[i];
             var edge_count=0;
             var sum=new THREE.Vector3(0,0,0);
             var f=new Face(f_id);
             f.startedge=he;
             this.mesh_face[f_id]=f;
-            do
-            {
+            do {
                 he.face=f;
                 sum.add(he.vert.pos);
+                if(he.vert.edge==undefined)
+                	he.vert.edge=he;
                 edge_count+=1;
                 he=he.next;
             }while(he!=this.mesh_half_edge[i])
             f.center_pos=new THREE.Vector3(sum.x/edge_count,sum.y/edge_count,sum.z/edge_count);
 
-            var v1=(new THREE.Vector3().subVectors(he.vert.pos,f.center_pos)).normalize(); 
-            var v2=(new THREE.Vector3().subVectors(he.vert.pos,he.sym.vert.pos)).normalize(); 
-            if(v1.cross(v2).z<0)
-                this.external_face_ID=f_id; 
-            else
-            {
-                do
-                {
-                    if(he.vert.edge==undefined)
-                        he.vert.edge=he;
-                    he=he.next;
-                }while(he!=this.mesh_half_edge[i])
+            if(this.external_face_ID==undefined){
+            	var v1=(new THREE.Vector3().subVectors(he.vert.pos,f.center_pos)).normalize(); 
+            	var v2=(new THREE.Vector3().subVectors(he.vert.pos,he.sym.vert.pos)).normalize(); 
+            	if(v1.cross(v2).z<0)
+                	this.external_face_ID=f_id; 
             }
             f_id+=1;
         }
@@ -300,7 +327,6 @@ Mesh.prototype.find_2D_Nodes=function(){
             this.node.push(node);
         }
     }
-
 
     //Build the connection between direction map and node face pair
    	var map_index=0;
@@ -377,6 +403,7 @@ Mesh.prototype.Produce_dual_structure=function(){
 	 var internal_edge_num= this.internal_dual_edge_direction_map.length;
 	 if(node_num_2==0 ||internal_edge_num==0) return;
 	 var m_Aeq=[];
+	 
 
 	 for(var i=0;i<node_num_2;i+=2){
 	 	m_Aeq[i]=new Array(internal_edge_num);
@@ -394,34 +421,55 @@ Mesh.prototype.Produce_dual_structure=function(){
 	 		m_Aeq[i+1][id]=sign*this.internal_dual_edge_direction_map[id].direction_vector.y;
 	 	}
 	 }
-	 //m_Aeq=Maxium_Linear_Independent_Group(m_Aeq);
+	 //In 2D,so far we haven't met a case that rows in m_Aeq are dependent on each other. But the columns may be dependent 
+	 //on each other.
+	 //m_Aeq=[[-2,2,0,0,0,0],[-3,1,2,0,0,0],[0,0,0,-2,2,0],[0,0,2,1,-3,0],[0,1,0,-1,0,0],[0,2,0,2,0,-4]];
+	 console.log(m_Aeq)
+	 m_Aeq=Maxium_Linear_Independent_Group(numeric.transpose(m_Aeq)).result;
+	 m_Aeq=numeric.transpose(m_Aeq);
+	 console.log(m_Aeq);
+
+	 // if(m_Aeq.length>=m_Aeq[0].length){
+	 // 	alert("No Positive solution")
+	 // 	return;
+	 // }
+
 	 var m_A=[];
-	 for(var i=0;i<internal_edge_num;i++) {
-	 	m_A[i]=new Array(internal_edge_num);
+	 for(var i=0;i<m_Aeq[0].length;i++) {
+	 	m_A[i]=new Array(m_Aeq[0].length);
 	 	m_A[i].fill(0);
 	 	m_A[i][i]=-1;
 	 }
 	 var m_b=[];
-	 for(var i=0;i<internal_edge_num;i++)
+	 for(var i=0;i<m_Aeq[0].length;i++)
 	 	m_b[i]=-1;
-	 var solution=new Object();
 	 var m_beq=[];
 	 for(var i=0;i<m_Aeq.length;i++)
 	 	m_beq[i]=0;
 
 	 var m_C=[];	 
-	 for(var i=0;i<internal_edge_num;i++)
+	 for(var i=0;i<m_Aeq[0].length;i++)
 	 	m_C[i]=1;
+
+
+	 var edge_map=new Array(internal_edge_num);
+	 for(var i=0;i<internal_edge_num;i++)
+	 	edge_map[i]=i;
 	var x=numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq); 
 	console.log(x);
+	if(x.message=="Infeasible")	{
+		alert("No Positive solution")
+		return;
+	}
 
 	 for(var i=0;i<internal_edge_num;i++) {
 	 	var length_map_obj=new Length_Map_Obj();
 	 	length_map_obj.id=i;
 	 	length_map_obj.f_p=this.internal_dual_edge_direction_map[i].f_p;
-	 	length_map_obj.length=x.solution[i];
 	 	this.internal_dual_edge_length_map.push(length_map_obj);
 	 }
+	 for(var i=0;i<edge_map.length;i++)
+	 	this.internal_dual_edge_length_map[edge_map[i]].length=x.solution[i];
 	 var startId=0;
 	 if(this.external_face_ID==0) startId=1;
 	 this.mesh_face[startId].dual_pos=new THREE.Vector3(0,0,0);
@@ -453,9 +501,17 @@ Mesh.prototype.Produce_dual_structure=function(){
 	  	this.dual_bound[i].add(this.mesh_face[this.external_face_ID].center_pos);
 	 }
 	 this.dual_geo_center=new THREE.Vector3().copy(this.mesh_face[this.external_face_ID].center_pos);
-	 for(var i in this.internal_dual_edge_length_map)
-	 	this.internal_dual_edge_length_map[i].length*=scale;
-
+	 for(var i in this.internal_dual_edge_length_map){
+	 	if(this.internal_dual_edge_length_map[i].length==undefined){
+	 		var p=this.internal_dual_edge_length_map[i].f_p;
+	 		if(this.mesh_face[p.x].dual_pos==undefined || this.mesh_face[p.y].dual_pos==undefined)
+	 			this.internal_dual_edge_length_map[i].length=undefined;
+	 		this.internal_dual_edge_length_map[i].length=(new THREE.Vector3().subVectors(this.mesh_face[p.x].dual_pos,
+	 			this.mesh_face[p.y].dual_pos)).length();
+	 	}
+	 	else
+	 		this.internal_dual_edge_length_map[i].length*=scale;
+	 }
 	 this.dual_finished=true;
 	
 }
@@ -505,10 +561,16 @@ Mesh.prototype.computeDualPos=function(startFace_id){
 			        this.internal_dual_edge_length_map.push(length_map_obj);
 			        dual_p=new THREE.Vector3().addVectors(startPos,dir);
 	    		}
-	    		else
+	    		else{
+	    			if(this.internal_dual_edge_length_map[index].length==undefined) {
+	    				he=he.next;
+	    				continue;
+	    			}
 	    			dual_p=new THREE.Vector3(startPos.x+sign*this.internal_dual_edge_length_map[index].length*this.internal_dual_edge_direction_map[index].direction_vector.x,
 	    		startPos.y+sign*this.internal_dual_edge_length_map[index].length*this.internal_dual_edge_direction_map[index].direction_vector.y,
-	    		startPos.z+sign*this.internal_dual_edge_length_map[index].length*this.internal_dual_edge_direction_map[index].direction_vector.z);	    		
+	    		startPos.z+sign*this.internal_dual_edge_length_map[index].length*this.internal_dual_edge_direction_map[index].direction_vector.z);	    	
+	    		}
+	
 	    		
 	    		this.mesh_face[neighbour_ID].dual_pos=dual_p;
 	    		if(dual_p.x<this.dual_bound[0].x)
@@ -534,7 +596,7 @@ Mesh.prototype.computeDualPos=function(startFace_id){
 	}while(he!=start_he);
 }
 Mesh.prototype.computeExDualEdge=function(){
-	if(this.external_face_ID==undefined) return;
+	if(this.external_face_ID==undefined || this.type=="Form") return;
 	var start=this.mesh_face[this.external_face_ID].startedge;
 	var he=start;
 	do{
