@@ -48,12 +48,14 @@
     //view1
     var Force,Form;
     var Import_Mesh_Type;
-    var Force_Line_Geometry=[],Force_Line_Render=[];
-    var Force_Face_Geometry=[], Force_Face_Render=[];
+    var Force_root;
+    var Form_root;
+    var Force_Line_Render=[];
+    var Force_Face_Render=[];
     var LineRenderMaterial= new THREE.LineBasicMaterial({
         vertexColors: true
       });
-    var Form_Line_Geometry=[], Form_Line_Render=[];
+    var Form_Line_Render=[];
     var FaceRenderMaterial=new THREE.MeshBasicMaterial( { 
         color: 0xe46a6a, 
         opacity: 0.1,
@@ -104,13 +106,13 @@
         var v=new Array();
         var e=new Array();
 
-        for(var i in Force.internal_dual_edge_direction_map){
-            var v1_index=Force.internal_dual_edge_direction_map[i].f_p.x;
-            var v2_index=Force.internal_dual_edge_direction_map[i].f_p.y;
+        for(var i in Force.internal_dual_edge_map){
+            var v1_index=Force.internal_dual_edge_map[i].f_p.x;
+            var v2_index=Force.internal_dual_edge_map[i].f_p.y;
             if(v1_index>Force.external_face_ID) v1_index--;
             if(v2_index>Force.external_face_ID) v2_index--;
             var e_obj={
-                index:Force.internal_dual_edge_direction_map[i].id,
+                index:Force.internal_dual_edge_map[i].id,
                 v1:v1_index,
                 v2:v2_index
             }
@@ -159,11 +161,10 @@
         //localStorage.setItem("Edges",e);
 
     }
+
     function DrawForce(){
         'use strict'
-        Force_Line_Geometry=[];
         Force_Line_Render=[];
-        Force_Face_Geometry=[];
         Force_Face_Render=[];
         scene2=new THREE.Scene;
         views[1].scene=scene2;
@@ -175,45 +176,45 @@
 
         var vert_Group=[];
         for(var v in Force.mesh_vertex){
-            var vert=new THREE.Vector3().subVectors(Force.mesh_vertex[v].pos,Force.mesh_face[Force.external_face_ID].center_pos);
+            var vert=new THREE.Vector3().subVectors(Force.mesh_vertex[v].pos,Force.fixed_center);
             vert.multiplyScalar(Force_scale);
             vert_Group.push(vert);
         }
         for(var i=0;i<Force.mesh_half_edge.length;i+=2){
-            Force_Line_Geometry[i]=new THREE.Geometry();
-            Force_Line_Geometry[i].vertices.push(new THREE.Vector3().copy(vert_Group[Force.mesh_half_edge[i].sym.vert.id]));
-            Force_Line_Geometry[i].vertices.push(new THREE.Vector3().copy(vert_Group[Force.mesh_half_edge[i].vert.id]));
+            var force_line_geo=new THREE.Geometry();
+            force_line_geo.vertices.push(new THREE.Vector3().copy(vert_Group[Force.mesh_half_edge[i].sym.vert.id]));
+            force_line_geo.vertices.push(new THREE.Vector3().copy(vert_Group[Force.mesh_half_edge[i].vert.id]));
             if(Force.mesh_half_edge[i].external){
                 if(Force.mesh_half_edge[i].connected)
-                    Force_Line_Geometry[i].colors.push(new THREE.Color( 0xFFFFFF ),new THREE.Color( 0xFFFFFF ));
+                    force_line_geo.colors.push(new THREE.Color( 0xFFFFFF ),new THREE.Color( 0xFFFFFF ));
                 else
-                    Force_Line_Geometry[i].colors.push(new THREE.Color( 0x7FFF00 ),new THREE.Color( 0x7FFF00 ));
+                    force_line_geo.colors.push(new THREE.Color( 0x7FFF00 ),new THREE.Color( 0x7FFF00 ));
             }
             else 
-                Force_Line_Geometry[i].colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
-            Force_Line_Render[i]=new THREE.Line(Force_Line_Geometry[i],LineRenderMaterial,THREE.LineSegments);
-            scene2.add(Force_Line_Render[i]);   
+                force_line_geo.colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
+            Force_Line_Render[i/2]=new THREE.Line(force_line_geo,LineRenderMaterial,THREE.LineSegments);
+            scene2.add(Force_Line_Render[i/2]);   
         }
         for(var f in Force.mesh_face){
-            Force_Face_Geometry[f]=new THREE.Geometry();
+            var force_face_geo=new THREE.Geometry();
             var idx=[];
             var he=Force.mesh_face[f].startedge;
             var count=0;
             do{
-                Force_Face_Geometry[f].vertices.push(new THREE.Vector3().copy(vert_Group[he.vert.id]));
+                force_face_geo.vertices.push(new THREE.Vector3().copy(vert_Group[he.vert.id]));
                 idx.push(count);
                 he=he.next;
                 count++;
             }while(he!=Force.mesh_face[f].startedge)
             for(var i=1;i<idx.length-1;i++)
-                Force_Face_Geometry[f].faces.push(new THREE.Face3(idx[0],idx[i],idx[i+1]));
-            Force_Face_Render[f]=new THREE.Mesh(Force_Face_Geometry[f],FaceRenderMaterial);
+                force_face_geo.faces.push(new THREE.Face3(idx[0],idx[i],idx[i+1]));
+            Force_Face_Render[f]=new THREE.Mesh(force_face_geo,FaceRenderMaterial);
         }
 
     }
+
     function DrawForm(){
         'use strict'
-        Form_Line_Geometry=[];
         Form_Line_Render=[];
         scene1=new THREE.Scene;
         views[0].scene=scene1;
@@ -221,91 +222,41 @@
             alert("No Form Geometry constructed")
             return;
         }
-
         for(var i=0;i<Form.mesh_half_edge.length;i+=2){
-            Form_Line_Geometry[i]=new THREE.Geometry();
-            Form_Line_Geometry[i].vertices.push(new THREE.Vector3().copy(Form.mesh_half_edge[i].vert.pos));
-            Form_Line_Geometry[i].vertices.push(new THREE.Vector3().copy(Form.mesh_half_edge[i].sym.vert.pos));
+            var form_line_geo=new THREE.Geometry();
+            form_line_geo=new THREE.Geometry();
+            form_line_geo.vertices.push(new THREE.Vector3().copy(Form.mesh_half_edge[i].vert.pos));
+            form_line_geo.vertices.push(new THREE.Vector3().copy(Form.mesh_half_edge[i].sym.vert.pos));
             if(Form.mesh_half_edge[i].connected)
-                Form_Line_Geometry[i].colors.push(new THREE.Color( 0xFFFFFF ),new THREE.Color( 0xFFFFFF ));
+                form_line_geo.colors.push(new THREE.Color( 0xFFFFFF ),new THREE.Color( 0xFFFFFF ));
             else if(Form.mesh_half_edge[i].external)
-                Form_Line_Geometry[i].colors.push(new THREE.Color( 0x7FFF00 ),new THREE.Color( 0x7FFF00 ));
+                form_line_geo.colors.push(new THREE.Color( 0x7FFF00 ),new THREE.Color( 0x7FFF00 ));
             else 
-                Form_Line_Geometry[i].colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
-            Form_Line_Geometry[i].translate(-Form.mesh_face[Form.external_face_ID].center_pos.x,
-                -Form.mesh_face[Form.external_face_ID].center_pos.y,-
-                -Form.mesh_face[Form.external_face_ID].center_pos.z);   
-            Form_Line_Geometry[i].scale(Form_scale,Form_scale,Form_scale);
-            Form_Line_Render[i]=new THREE.Line(Form_Line_Geometry[i],LineRenderMaterial,THREE.LineSegments);
-            scene1.add(Form_Line_Render[i]);     
-        }
-        console.log("here");
-        //show dual structure
-        // for(var e in Force.internal_dual_edge_length_map)
-        // {
-        //     Form_Line_Geometry[e]=new THREE.Geometry();
-        //     var index1=Force.internal_dual_edge_length_map[e].f_p.x;
-        //     var index2=Force.internal_dual_edge_length_map[e].f_p.y;
-        //     Form_Line_Geometry[e].vertices.push(new THREE.Vector3().copy(Force.mesh_face[index1].dual_pos));
-        //     Form_Line_Geometry[e].vertices.push(new THREE.Vector3().copy(Force.mesh_face[index2].dual_pos));
-        //     if(Force.internal_dual_edge_length_map[e].length>=0)
-        //         Form_Line_Geometry[e].colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
-        //     else
-        //         Form_Line_Geometry[e].colors.push(new THREE.Color( 0xFF0000 ),new THREE.Color( 0xFF0000 ));
-        //     //Form_Line_Geometry[e].
-        //     Form_Line_Geometry[e].translate(-Force.dual_geo_center.x,-Force.dual_geo_center.y,-Force.dual_geo_center.z);   
-        //     Form_Line_Geometry[e].scale(Form_scale,Form_scale,Form_scale);
-        //     Form_Line_Render[e]=new THREE.Line(Form_Line_Geometry[e],LineRenderMaterial,THREE.LineSegments);
-
-
-        //     scene1.add(Form_Line_Render[e]);        
-        // }
-        // //draw external dual edge;
-        // for(var f in Force.mesh_face)
-        // {
-        //     if(Force.mesh_face[f].external_dual_edge.length>0)
-        //     {
-        //         for(var e in Force.mesh_face[f].external_dual_edge)
-        //         {
-        //             var idx=Form_Line_Geometry.length;
-        //             Form_Line_Geometry[idx] = new THREE.Geometry();
-        //             var e_v1=new THREE.Vector3().copy(Force.mesh_face[f].dual_pos);
-        //             var e_v2=new THREE.Vector3().addVectors(e_v1,Force.mesh_face[f].external_dual_edge[e]);
-        //             Form_Line_Geometry[idx].vertices.push(e_v1);
-        //             Form_Line_Geometry[idx].vertices.push(e_v2);
-        //             Form_Line_Geometry[idx].colors.push(new THREE.Color( 0x7FFF00 ),new THREE.Color( 0x7FFF00 ));
-        //             Form_Line_Geometry[idx].translate(-Force.dual_geo_center.x,-Force.dual_geo_center.y,-Force.dual_geo_center.z);   
-        //             Form_Line_Geometry[idx].scale(Form_scale,Form_scale,Form_scale);
-        //             Form_Line_Render[idx] = new THREE.Line(Form_Line_Geometry[idx],LineRenderMaterial,THREE.LineSegments);
-        //             scene1.add(Form_Line_Render[idx]);
-        //         }
-        //     }
-        // }
-
+                form_line_geo.colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
+            form_line_geo.translate(-Form.fixed_center.x,-Form.fixed_center.y,-Form.fixed_center.z);   
+            form_line_geo.scale(Form_scale,Form_scale,Form_scale);
+            Form_Line_Render[i/2]=new THREE.Line(form_line_geo,LineRenderMaterial,THREE.LineSegments);
+            scene1.add(Form_Line_Render[i/2]);    
+        } 
     }
-    function ReComputeMeshScale(mesh){
+    function ReComputeMeshScale(){
         'use strict'
-        //Adjust the size and scale of the geometry
-        var mesh_scale=0, dual_scale=0;
-        if(mesh.half_finished){
-            var mesh_range=new THREE.Vector3().subVectors(mesh.bound[1],mesh.bound[0]);
-            var mesh_aspect=views[1].window.width / views[1].window.height;
-            if(mesh_aspect<=1)
-                mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*mesh_range.length());
+        if(Force.half_finished){
+            var Force_range=new THREE.Vector3().subVectors(Force.bound[1],Force.bound[0]);
+            var Force_aspect=views[1].window.width / views[1].window.height;
+            if(Force_aspect<=1)
+                Force_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*Force_range.length());
             else
-                mesh_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*mesh_aspect*mesh_range.length());
+                Force_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*Force_aspect*Force_range.length());
         }
-        if(mesh.dual_finished){
-            var dual_range=new THREE.Vector3().subVectors(mesh.dual_bound[1],mesh.dual_bound[0]);
-            var dual_aspect=views[0].window.width / views[0].window.height;
-            if(dual_aspect<=1)
-                dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*dual_range.length());
+        if(Form.half_finished){
+            var Form_range=new THREE.Vector3().subVectors(Form.bound[1],Form.bound[0]);
+            var Form_aspect=views[0].window.width / views[0].window.height;
+            if(Form_aspect<=1)
+                Form_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*Form_range.length());
             else
-                dual_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*dual_aspect*dual_range.length());
+                Form_scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*Form_aspect*Form_range.length());
         }
-        Force_scale=(mesh.type=="Force"? mesh_scale:dual_scale);
-        Form_scale=(mesh.type=="Force"? dual_scale:mesh_scale);
-
     }
     function buildMeshStructure(event){
         'use strict'
@@ -326,34 +277,36 @@
         mesh.buildHalfEdgeStructure(json.vertices,json.edges);       
         mesh.find_2D_Nodes();
         mesh.Produce_dual_structure();
-        ReComputeMeshScale(mesh);
+ 
 
         if(mesh.dual_finished){
             for(var i=0;i<mesh.mesh_face.length;i++){
                 if(i==mesh.external_face_ID) continue;
                     v.push([mesh.mesh_face[i].dual_pos.x,mesh.mesh_face[i].dual_pos.y,mesh.mesh_face[i].dual_pos.z]);
             }
-            for(var i=0;i<mesh.internal_dual_edge_direction_map.length;i++){
-                var idx1=mesh.internal_dual_edge_direction_map[i].f_p.x;
-                var idx2=mesh.internal_dual_edge_direction_map[i].f_p.y;
+            for(var i=0;i<mesh.internal_dual_edge_map.length;i++){
+                var idx1=mesh.internal_dual_edge_map[i].f_p.x;
+                var idx2=mesh.internal_dual_edge_map[i].f_p.y;
                 if(idx1>mesh.external_face_ID)idx1--;
                 if(idx2>mesh.external_face_ID)idx2--;
                 e.push([idx1,idx2]);
             }
-            for(var i=0;i<mesh.mesh_face.length;i++){
-                for(var j=0;j<mesh.mesh_face[i].external_dual_edge.length;j++){
-                    var idx1=mesh.mesh_face[i].id;
-                    var idx2=v.length;
-                    if(idx1>mesh.external_face_ID) idx1--;
-                    var e_v=new THREE.Vector3().addVectors(mesh.mesh_face[i].dual_pos,mesh.mesh_face[i].external_dual_edge[j]);
-                    v.push([e_v.x,e_v.y,e_v.z]);
-                    e.push([idx1,idx2]);
-                }
+            for(var i=0;i<mesh.external_dual_edge_map.length;i++){
+                var ex_edge=mesh.external_dual_edge_map[i];
+                var idx1=ex_edge.face.id;
+                var idx2=v.length;
+                var endpos=new THREE.Vector3().addVectors(ex_edge.face.dual_pos,ex_edge.vector);
+                if(idx1>mesh.external_face_ID) idx1--;
+                v.push([endpos.x,endpos.y,endpos.z]);
+                e.push([idx1,idx2]);
 
             }
             dual.buildHalfEdgeStructure(v,e);
-        }   
-
+            ConnectForceForm();
+        }
+        else
+            dual.clear();
+        ReComputeMeshScale();
         console.log(Force,Form);
         DrawForce();
         DrawForm();
@@ -364,10 +317,9 @@
             highlight_edge_id=0;
             var highlight_edge_geo=new THREE.Geometry();
             var highlight_point_geo=new THREE.Geometry();
-            highlight_edge_geo.vertices.push((new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-                            Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale),
-                            (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos, 
-                            Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale));
+            highlight_edge_geo.vertices.push(
+                (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].sym.vert.pos,Force.fixed_center)).multiplyScalar(Force_scale),
+                (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos,Force.fixed_center)).multiplyScalar(Force_scale));
             highlight_edge_geo.colors.push(new THREE.Color(0xFFFF00),new THREE.Color(0xFF0000));
             highlight_point_geo.vertices.push(new THREE.Vector3(0,0,0));
             highlight_edge=new THREE.Line(highlight_edge_geo,LineRenderMaterial,THREE.LineSegments);
@@ -379,58 +331,115 @@
         //Store the result
         //StoreDualData();
     }
+
+    function ConnectForceForm(){
+        var mesh,dual;
+        if(Import_Mesh_Type=="Force"){
+            for(var i=0;i<Force.mesh_face.length-1;i++){
+                var id=i<Force.external_face_ID?i:i+1;
+                Form.mesh_vertex[i].Force_Face_ID=id;
+                Force.mesh_face[id].Form_Vert_ID=i;
+            }
+            mesh=Force;
+            dual=Form;
+        }
+        else{
+            for(var i=0;i<Form.node.length;i++){
+                var v_arr=Form.node[i].Sort_Face_ID.slice(0);
+                for(var j in v_arr)
+                    if(v_arr[j]>Form.external_face_ID)
+                        v_arr[j]--;
+                var he=Force.mesh_vertex[v_arr[0]].edge;
+                do{
+                    var face=he.face;
+                    var f_l=face.startedge;
+                    var flag=true;
+                    do{
+                        var idx=v_arr.findIndex(function(x) { 
+                        return (x==f_l.vert.id);});
+                        if(idx==-1) {
+                            flag=false;
+                            break;
+                        }
+                        else f_l=f_l.next;
+                    }while(f_l!=face.startedge);
+                    if(!flag)
+                        he=he.next.sym;
+                    else{
+                        Form.node[i].vert.Force_Face_ID=face.id;
+                        face.Form_Vert_ID=Form.node[i].vert.id;
+                        break;
+                    }
+                }while(he!=Force.mesh_vertex[v_arr[0]].edge)             
+            }
+            mesh=Form;
+            dual=Force;
+        }
+        for(var i=0;i<mesh.internal_dual_edge_map.length;i++){
+            var id=mesh.internal_dual_edge_map[i].hl_ID;
+            dual.mesh_half_edge[2*i].Perpendicular_hl_ID=id;
+            dual.mesh_half_edge[2*i].sym.Perpendicular_hl_ID=mesh.mesh_half_edge[id].sym.id;
+            mesh.mesh_half_edge[id].Perpendicular_hl_ID=2*i;
+            mesh.mesh_half_edge[id].sym.Perpendicular_hl_ID=dual.mesh_half_edge[2*i].sym.id;
+        }
+        for(var i=0;i<mesh.external_dual_edge_map.length;i++){
+            var id=mesh.external_dual_edge_map[i].hl_ID;
+            var idx=2*(i+mesh.internal_dual_edge_map.length);
+            dual.mesh_half_edge[idx].Perpendicular_hl_ID=id;
+            dual.mesh_half_edge[idx].sym.Perpendicular_hl_ID=mesh.mesh_half_edge[id].sym.id;
+            mesh.mesh_half_edge[id].Perpendicular_hl_ID=idx;
+            mesh.mesh_half_edge[id].sym.Perpendicular_hl_ID=dual.mesh_half_edge[idx].sym.id;
+        }
+    }
+
     function Execute_Barycentric_Subdivision(){
         'use strict'
         if(highlight_face_id==undefined)
             return;
         var num=Force.mesh_half_edge.length;
         var numf=Force.mesh_face.length;
-        var RenderLNum=Force_Line_Geometry.length;
-        var RenderFNum=Force_Face_Geometry.length;
+        var RenderLNum=Force_Line_Render.length;
+        var RenderFNum=Force_Face_Render.length;
 
-        Force.BaryCentricSubdivision(highlight_face_id);
+        BaryCentricSubdivision(Force,Form,highlight_face_id);
         scene2.remove(Force_Face_Render[highlight_face_id]);//Do this to make sure the hightlight elements are the last to be rendered.
 
         //Change the rendering result of line;
         for(var i=num;i<Force.mesh_half_edge.length;i+=2){
-            Force_Line_Geometry[RenderLNum]=new THREE.Geometry();
-            Force_Line_Geometry[RenderLNum].vertices.push(new THREE.Vector3().copy(Force.mesh_half_edge[i].sym.vert.pos),
-                                                    new THREE.Vector3().copy(Force.mesh_half_edge[i].vert.pos));
-            Force_Line_Geometry[RenderLNum].colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
-            Force_Line_Geometry[RenderLNum].translate(-Force.mesh_face[Force.external_face_ID].center_pos.x,
-                -Force.mesh_face[Force.external_face_ID].center_pos.y,
-                -Force.mesh_face[Force.external_face_ID].center_pos.z);   
-            Force_Line_Geometry[RenderLNum].scale(Force_scale,Force_scale,Force_scale);
+            var force_line=new THREE.Geometry();
+            force_line.vertices.push(new THREE.Vector3().copy(Force.mesh_half_edge[i].sym.vert.pos),
+                new THREE.Vector3().copy(Force.mesh_half_edge[i].vert.pos));
+            force_line.colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
+            force_line.translate(-Force.fixed_center.x,-Force.fixed_center.y,-Force.fixed_center.z);   
+            force_line.scale(Force_scale,Force_scale,Force_scale);
 
-            Force_Line_Render[RenderLNum]=new THREE.Line(Force_Line_Geometry[RenderLNum],LineRenderMaterial,THREE.LineSegments);
+            Force_Line_Render[RenderLNum]=new THREE.Line(force_line,LineRenderMaterial,THREE.LineSegments);
             scene2.add(Force_Line_Render[RenderLNum]);
             RenderLNum++;
         }
 
         //Change the rendering result of faces
-        Force_Face_Geometry[highlight_face_id]=new THREE.Geometry();
-        Force_Face_Geometry[highlight_face_id].vertices.push(new THREE.Vector3().copy(Force.mesh_face[highlight_face_id].startedge.vert.pos),
-                                            new THREE.Vector3().copy(Force.mesh_face[highlight_face_id].startedge.next.vert.pos),
-                                            new THREE.Vector3().copy(Force.mesh_face[highlight_face_id].startedge.sym.vert.pos));
-        Force_Face_Geometry[highlight_face_id].translate(-Force.mesh_face[Force.external_face_ID].center_pos.x,
-                -Force.mesh_face[Force.external_face_ID].center_pos.y,
-                -Force.mesh_face[Force.external_face_ID].center_pos.z); 
-        Force_Face_Geometry[highlight_face_id].scale(Force_scale,Force_scale,Force_scale);
-        Force_Face_Geometry[highlight_face_id].faces.push(new THREE.Face3(0,1,2));
-        Force_Face_Render[highlight_face_id]=new THREE.Mesh(Force_Face_Geometry[highlight_face_id],FaceRenderMaterial);
+        var original_face=new THREE.Geometry();
+        original_face.vertices.push(new THREE.Vector3().copy(Force.mesh_face[highlight_face_id].startedge.vert.pos),
+            new THREE.Vector3().copy(Force.mesh_face[highlight_face_id].startedge.next.vert.pos),
+            new THREE.Vector3().copy(Force.mesh_face[highlight_face_id].startedge.sym.vert.pos));
+        original_face.translate(-Force.fixed_center.x,-Force.fixed_center.y,-Force.fixed_center.z); 
+        original_face.scale(Force_scale,Force_scale,Force_scale);
+        original_face.faces.push(new THREE.Face3(0,1,2));
+        Force_Face_Render[highlight_face_id]=new THREE.Mesh(original_face,FaceRenderMaterial);
 
+        //Produce new rendering faces
         for(var i=numf;i<Force.mesh_face.length;i++){
-            console.log("here");
-            Force_Face_Geometry[i]=new THREE.Geometry();
-            Force_Face_Geometry[i].vertices.push(new THREE.Vector3().copy(Force.mesh_face[i].startedge.vert.pos),
-                                new THREE.Vector3().copy(Force.mesh_face[i].startedge.next.vert.pos),
-                                new THREE.Vector3().copy(Force.mesh_face[i].startedge.sym.vert.pos));
-            Force_Face_Geometry[i].translate(-Force.mesh_face[Force.external_face_ID].center_pos.x,
-                -Force.mesh_face[Force.external_face_ID].center_pos.y,
-                -Force.mesh_face[Force.external_face_ID].center_pos.z); 
-            Force_Face_Geometry[i].scale(Force_scale,Force_scale,Force_scale);
-            Force_Face_Geometry[i].faces.push(new THREE.Face3(0,1,2));
-            Force_Face_Render[i]=new THREE.Mesh(Force_Face_Geometry[i],FaceRenderMaterial);
+            var force_face=new THREE.Geometry();
+            force_face.vertices.push(new THREE.Vector3().copy(Force.mesh_face[i].startedge.vert.pos),
+                new THREE.Vector3().copy(Force.mesh_face[i].startedge.next.vert.pos),
+                new THREE.Vector3().copy(Force.mesh_face[i].startedge.sym.vert.pos));
+            force_face.translate(-Force.fixed_center.x,
+                -Force.fixed_center.y,
+                -Force.fixed_center.z); 
+            force_face.scale(Force_scale,Force_scale,Force_scale);
+            force_face.faces.push(new THREE.Face3(0,1,2));
+            Force_Face_Render[i]=new THREE.Mesh(force_face,FaceRenderMaterial);
         }
 
         var highlight_edge_geo=new THREE.Geometry();
@@ -439,8 +448,7 @@
         highlight_edge=new THREE.Line(highlight_edge_geo,LineRenderMaterial,THREE.LineSegments);
         scene2.add(Force_Face_Render[highlight_face_id]);
         DrawForm();
-        console.log(Force);
-
+        console.log(Force,Form);
     }
     function keyEvent(event){
         'use strict'
@@ -452,23 +460,23 @@
                 case 'N':
                     highlight_edge_id=Force.mesh_half_edge[highlight_edge_id].next.id;
                     highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-                        Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                        Force.fixed_center)).multiplyScalar(Force_scale);
                     highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos, 
-                        Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                        Force.fixed_center)).multiplyScalar(Force_scale);
                     highlight_edge.geometry.verticesNeedUpdate=true;
                     break;
                 case 'S':
                     highlight_edge_id=Force.mesh_half_edge[highlight_edge_id].sym.id;
                     highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-                        Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                        Force.fixed_center)).multiplyScalar(Force_scale);
                     highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos, 
-                        Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                        Force.fixed_center)).multiplyScalar(Force_scale);
                     highlight_edge.geometry.verticesNeedUpdate=true;
                     break;
                 case 'V':
                     highlight_point_id=Force.mesh_half_edge[highlight_edge_id].vert.id;
                     highlight_point.geometry.vertices[0]=(new THREE.Vector3().subVectors(Force.mesh_vertex[highlight_point_id].pos,
-                        Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                        Force.fixed_center)).multiplyScalar(Force_scale);
                     highlight_point.geometry.verticesNeedUpdate=true;
                     scene2.add(highlight_point);
                     scene2.remove(highlight_edge);                    
@@ -478,7 +486,7 @@
                     highlight_face_id=Force.mesh_half_edge[highlight_edge_id].face.id;
                     scene2.add(Force_Face_Render[highlight_face_id]);
                     scene2.remove(highlight_edge);
-                    highlight_edge_id=undefined;                  
+                    highlight_edge_id=undefined;               
                     break;
             }  
         }
@@ -488,9 +496,9 @@
             {
                 highlight_edge_id=Force.mesh_vertex[highlight_point_id].edge.id;
                 highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-                    Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                    Force.fixed_center)).multiplyScalar(Force_scale);
                 highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos, 
-                    Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                    Force.fixed_center)).multiplyScalar(Force_scale);
                 scene2.add(highlight_edge);
                 scene2.remove(highlight_point); 
                 highlight_edge.geometry.verticesNeedUpdate=true;  
@@ -503,9 +511,9 @@
             {
                 highlight_edge_id=Force.mesh_face[highlight_face_id].startedge.id;
                 highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-                    Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                    Force.fixed_center)).multiplyScalar(Force_scale);
                 highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos, 
-                    Force.mesh_face[Force.external_face_ID].center_pos)).multiplyScalar(Force_scale);
+                    Force.fixed_center)).multiplyScalar(Force_scale);
                 scene2.add(highlight_edge);
                 scene2.remove(Force_Face_Render[highlight_face_id]);
                 highlight_edge.geometry.verticesNeedUpdate=true;
