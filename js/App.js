@@ -164,11 +164,14 @@
 
     function DrawForce(){
         'use strict'
+        // for(int i=0;i<Force_root.children.length;i++){
+        //     Force_root.remove(Force_root.children[i]);
+        // }
+        if(scene2.children.length>0)
+            scene2.remove(Force_root);
+        Force_root=new THREE.Object3D();
         Force_Line_Render=[];
         Force_Face_Render=[];
-        scene2=new THREE.Scene;
-        views[1].scene=scene2;
-
         if(!Force.half_finished){
             alert("No Force Geometry constructed");
             return;
@@ -193,8 +196,9 @@
             else 
                 force_line_geo.colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
             Force_Line_Render[i/2]=new THREE.Line(force_line_geo,LineRenderMaterial,THREE.LineSegments);
-            scene2.add(Force_Line_Render[i/2]);   
+            Force_root.add(Force_Line_Render[i/2]);
         }
+
         for(var f in Force.mesh_face){
             var force_face_geo=new THREE.Geometry();
             var idx=[];
@@ -210,14 +214,15 @@
                 force_face_geo.faces.push(new THREE.Face3(idx[0],idx[i],idx[i+1]));
             Force_Face_Render[f]=new THREE.Mesh(force_face_geo,FaceRenderMaterial);
         }
-
+        scene2.add(Force_root);
     }
 
     function DrawForm(){
         'use strict'
+        if(scene1.children.length>0)
+            scene1.remove(Form_root);
+        Form_root=new THREE.Object3D();
         Form_Line_Render=[];
-        scene1=new THREE.Scene;
-        views[0].scene=scene1;
         if(!Form.half_finished) {
             alert("No Form Geometry constructed")
             return;
@@ -236,9 +241,11 @@
             form_line_geo.translate(-Form.fixed_center.x,-Form.fixed_center.y,-Form.fixed_center.z);   
             form_line_geo.scale(Form_scale,Form_scale,Form_scale);
             Form_Line_Render[i/2]=new THREE.Line(form_line_geo,LineRenderMaterial,THREE.LineSegments);
-            scene1.add(Form_Line_Render[i/2]);    
-        } 
+            Form_root.add(Form_Line_Render[i/2]);    
+        }
+        scene1.add(Form_root);
     }
+
     function ReComputeMeshScale(){
         'use strict'
         if(Force.half_finished){
@@ -311,7 +318,6 @@
         DrawForce();
         DrawForm();
 
-
         if(Force.half_finished)
         {
             highlight_edge_id=0;
@@ -324,8 +330,7 @@
             highlight_point_geo.vertices.push(new THREE.Vector3(0,0,0));
             highlight_edge=new THREE.Line(highlight_edge_geo,LineRenderMaterial,THREE.LineSegments);
             highlight_point=new THREE.Points(highlight_point_geo,PointRenderMaterial);
-
-            scene2.add(highlight_edge);
+            Force_root.add(highlight_edge);
         }
 
         //Store the result
@@ -402,7 +407,8 @@
         var RenderFNum=Force_Face_Render.length;
 
         BaryCentricSubdivision(Force,Form,highlight_face_id);
-        scene2.remove(Force_Face_Render[highlight_face_id]);//Do this to make sure the hightlight elements are the last to be rendered.
+        Force_root.remove(Force_Face_Render[highlight_face_id]);
+        //scene2.remove(Force_Face_Render[highlight_face_id]);//Do this to make sure the hightlight elements are the last to be rendered.
 
         //Change the rendering result of line;
         for(var i=num;i<Force.mesh_half_edge.length;i+=2){
@@ -414,7 +420,7 @@
             force_line.scale(Force_scale,Force_scale,Force_scale);
 
             Force_Line_Render[RenderLNum]=new THREE.Line(force_line,LineRenderMaterial,THREE.LineSegments);
-            scene2.add(Force_Line_Render[RenderLNum]);
+            Force_root.add(Force_Line_Render[RenderLNum]);
             RenderLNum++;
         }
 
@@ -446,9 +452,8 @@
         highlight_edge_geo.vertices.push(new THREE.Vector3(),new THREE.Vector3());
         highlight_edge_geo.colors.push(new THREE.Color(0xFFFF00),new THREE.Color(0xFF0000));
         highlight_edge=new THREE.Line(highlight_edge_geo,LineRenderMaterial,THREE.LineSegments);
-        scene2.add(Force_Face_Render[highlight_face_id]);
+        Force_root.add(Force_Face_Render[highlight_face_id]);
         DrawForm();
-        console.log(Force,Form);
     }
     function keyEvent(event){
         'use strict'
@@ -478,14 +483,14 @@
                     highlight_point.geometry.vertices[0]=(new THREE.Vector3().subVectors(Force.mesh_vertex[highlight_point_id].pos,
                         Force.fixed_center)).multiplyScalar(Force_scale);
                     highlight_point.geometry.verticesNeedUpdate=true;
-                    scene2.add(highlight_point);
-                    scene2.remove(highlight_edge);                    
+                    Force_root.add(highlight_point);
+                    Force_root.remove(highlight_edge);                    
                     highlight_edge_id=undefined;
                     break;
                 case 'F':
                     highlight_face_id=Force.mesh_half_edge[highlight_edge_id].face.id;
-                    scene2.add(Force_Face_Render[highlight_face_id]);
-                    scene2.remove(highlight_edge);
+                    Force_root.add(Force_Face_Render[highlight_face_id]);
+                    Force_root.remove(highlight_edge);
                     highlight_edge_id=undefined;               
                     break;
             }  
@@ -499,8 +504,8 @@
                     Force.fixed_center)).multiplyScalar(Force_scale);
                 highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos, 
                     Force.fixed_center)).multiplyScalar(Force_scale);
-                scene2.add(highlight_edge);
-                scene2.remove(highlight_point); 
+                Force_root.add(highlight_edge);
+                Force_root.remove(highlight_point); 
                 highlight_edge.geometry.verticesNeedUpdate=true;  
                 highlight_point_id=undefined;                
             }
@@ -514,8 +519,8 @@
                     Force.fixed_center)).multiplyScalar(Force_scale);
                 highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.mesh_half_edge[highlight_edge_id].vert.pos, 
                     Force.fixed_center)).multiplyScalar(Force_scale);
-                scene2.add(highlight_edge);
-                scene2.remove(Force_Face_Render[highlight_face_id]);
+                Force_root.add(highlight_edge);
+                Force_root.remove(Force_Face_Render[highlight_face_id]);
                 highlight_edge.geometry.verticesNeedUpdate=true;
                 highlight_face_id=undefined;               
             }
@@ -598,6 +603,8 @@
 
         Force=new Mesh("Force");
         Form=new Mesh("Form");
+        Force_root=new THREE.Object3D();
+        Form_root=new THREE.Object3D();
 
         camera.position.x=0;
         camera.position.y=0;
