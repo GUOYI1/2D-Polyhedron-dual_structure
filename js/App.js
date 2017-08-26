@@ -52,10 +52,11 @@
     var Form_root;
     var Force_Line_Render=[];
     var Force_Face_Render=[];
+    var Form_Vert_Render=[];
+    var Form_Edge_Render=[];
     var LineRenderMaterial= new THREE.LineBasicMaterial({
         vertexColors: true
       });
-    var Form_Line_Render=[];
     var FaceRenderMaterial=new THREE.MeshBasicMaterial( { 
         color: 0xe46a6a, 
         opacity: 0.1,
@@ -67,6 +68,52 @@
         size: 8, 
         sizeAttenuation: false,
         color: 0xFF0000 });
+
+    var Form_Material=[
+        //Internal edges
+        new THREE.MeshBasicMaterial( { 
+        color: 0x156289, 
+        opacity: 0.6,
+        transparent:true,
+        side: THREE.DoubleSide,
+        depthWrite: false
+        }),
+
+        //Fliped internal edges
+        new THREE.MeshBasicMaterial( { 
+        color: 0xFF0000, 
+        opacity: 0.6,
+        transparent:true,
+        side: THREE.DoubleSide,
+        depthWrite: false
+        }),
+
+        //External Edges
+        new THREE.MeshBasicMaterial( { 
+        color: 0x7FFF00, 
+        opacity: 0.6,
+        transparent:true,
+        side: THREE.DoubleSide,
+        depthWrite: false
+        }),
+
+        //Connected Boundary Edges
+        new THREE.MeshBasicMaterial( { 
+        color: 0xFFFFFF, 
+        opacity: 0.6,
+        transparent:true,
+        side: THREE.DoubleSide,
+        depthWrite: false
+        }),
+
+        //Vertex
+        new THREE.MeshBasicMaterial( { 
+        color: 0xEEC900, 
+        })
+    ]
+
+    var MaxForceLength=undefined;
+    var MaxThickness=1;
     var datgui;
     var axis;
     var Mouse1,Mouse2;
@@ -75,6 +122,7 @@
         LoadForceGeometry:undefined,
         LoadFormGeometry:undefined,
         Barycentric_Subdivision:undefined,
+        Parameter:undefined,
         Export_Poly_Data: undefined
     };
     var highlight_edge=undefined;
@@ -156,7 +204,6 @@
         else 
             alert("No Force is constructed");
     }
-
     function DrawForce(){
         'use strict'
         // for(int i=0;i<Force_root.children.length;i++){
@@ -179,6 +226,9 @@
             vert_Group.push(vert);
         }
         for(var i=0;i<Force.mesh_half_edge.length;i+=2){
+            var len=new THREE.Vector3().subVectors(Force.mesh_half_edge[i].sym.vert.pos,Force.mesh_half_edge[i].vert.pos).length();
+            if(MaxForceLength==undefined || len>MaxForceLength)
+                MaxForceLength=len;
             var force_line_geo=new THREE.Geometry();
             force_line_geo.vertices.push(new THREE.Vector3().copy(vert_Group[Force.mesh_half_edge[i].sym.vert.id]));
             force_line_geo.vertices.push(new THREE.Vector3().copy(vert_Group[Force.mesh_half_edge[i].vert.id]));
@@ -217,27 +267,47 @@
         if(scene1.children.length>0)
             scene1.remove(Form_root);
         Form_root=new THREE.Object3D();
-        Form_Line_Render=[];
+        Form_Vert_Render=[];
+        Form_Edge_Render=[];
         if(!Form.half_finished) {
             alert("No Form Geometry constructed")
             return;
         }
-        for(var i=0;i<Form.mesh_half_edge.length;i+=2){
-            var form_line_geo=new THREE.Geometry();
-            form_line_geo=new THREE.Geometry();
-            form_line_geo.vertices.push(new THREE.Vector3().copy(Form.mesh_half_edge[i].vert.pos));
-            form_line_geo.vertices.push(new THREE.Vector3().copy(Form.mesh_half_edge[i].sym.vert.pos));
-            if(Form.mesh_half_edge[i].connected)
-                form_line_geo.colors.push(new THREE.Color( 0xFFFFFF ),new THREE.Color( 0xFFFFFF ));
-            else if(Form.mesh_half_edge[i].external)
-                form_line_geo.colors.push(new THREE.Color( 0x7FFF00 ),new THREE.Color( 0x7FFF00 ));
-            else 
-                form_line_geo.colors.push(new THREE.Color( 0x156289 ),new THREE.Color( 0x156289 ));
-            form_line_geo.translate(-Form.fixed_center.x,-Form.fixed_center.y,-Form.fixed_center.z);   
-            form_line_geo.scale(Form_scale,Form_scale,Form_scale);
-            Form_Line_Render[i/2]=new THREE.Line(form_line_geo,LineRenderMaterial,THREE.LineSegments);
-            Form_root.add(Form_Line_Render[i/2]);    
+        for(var i=0;i<Form.mesh_vertex.length;i++){
+            var pos=new THREE.Vector3().subVectors(Form.mesh_vertex[i].pos,Form.fixed_center);
+            pos.multiplyScalar(Form_scale);
+            Form_Vert_Render[i]=createSphereMesh(pos,Form_Material[4],2*guiList.Parameter.MaxThickness);
+            Form_root.add(Form_Vert_Render[i]);
         }
+        for(var i=0;i<Form.mesh_half_edge.length;i+=2){
+            var pos1= new THREE.Vector3().subVectors(Form.mesh_half_edge[i].vert.pos,Form.fixed_center);
+            var pos2= new THREE.Vector3().subVectors(Form.mesh_half_edge[i].sym.vert.pos,Form.fixed_center);
+            pos1.multiplyScalar(Form_scale);
+            pos2.multiplyScalar(Form_scale);
+            var thick;
+            var material;
+            if(Force.half_finished){
+                if(Form.mesh_half_edge[i].connected)
+                    thick=0.5*guiList.Parameter.MaxThickness;
+                else{
+                    var force_he=Force.mesh_half_edge[Form.mesh_half_edge[i].Perpendicular_hl_ID];
+                    var len=new THREE.Vector3().subVectors(force_he.vert.pos,force_he.sym.vert.pos).length();
+                    thick=len/MaxForceLength*guiList.Parameter.MaxThickness;
+                }
+            }
+            
+            if(Form.mesh_half_edge[i].connected)
+                material=Form_Material[3];
+            else if(Form.mesh_half_edge[i].external)
+                material=Form_Material[2];
+            else if(Force.dual_finished && Force.internal_dual_edge_map[i/2].length<0)
+                material=Form_Material[1];
+            else
+                material=Form_Material[0];
+            Form_Edge_Render[i/2]=createCylinderMesh(pos1,pos2,material,thick);
+            Form_root.add(Form_Edge_Render[i/2]); 
+        }
+
         scene1.add(Form_root);
     }
 
@@ -629,6 +699,9 @@
         guiList.Barycentric_Subdivision={
             Barycentric_Subdiv: Execute_Barycentric_Subdivision
         }
+        guiList.Parameter={
+            MaxThickness:1
+        }
         guiList.Export_Poly_Data={
             Export_Poly_Data:function(){
                 window.open ('Poly_result.html');
@@ -639,12 +712,18 @@
         datgui.add(guiList.LoadForceGeometry,'Load_Force_file');
         datgui.add(guiList.LoadFormGeometry,'Load_Form_file');
         datgui.add(guiList.Barycentric_Subdivision,'Barycentric_Subdiv');
+        var MaxController=datgui.add(guiList.Parameter,'MaxThickness',0,2,0.01);
         datgui.add(guiList.Export_Poly_Data,'Export_Poly_Data');
+
+        MaxController.onChange(function(value) {
+            if(Form.half_finished)
+                DrawForm();
+        });
+
 
         
         viewResize();
         animate();
-    	//renderer.render(scene,camera);
 
     }
 })();
