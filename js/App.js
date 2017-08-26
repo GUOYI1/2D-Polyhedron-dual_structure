@@ -75,7 +75,7 @@
         LoadForceGeometry:undefined,
         LoadFormGeometry:undefined,
         Barycentric_Subdivision:undefined,
-        Export_Dual_Data: undefined
+        Export_Poly_Data: undefined
     };
     var highlight_edge=undefined;
     var highlight_point=undefined;
@@ -96,70 +96,65 @@
         reader.readAsText(file, "UTF-8");
         reader.onload=buildMeshStructure;
     }
-    function StoreDualData(){
+    function StoreData(){
         'use strict'
         localStorage.clear();
-        if(!Force.dual_finished && !Form.dual_finished) {
-            alert("Dual_Structure cannot be computed");
+        if(!Force.half_finished && !Form.half_finished) {
+            alert("No Poly data to be exported");
             return;
         }
-        var v=new Array();
-        var e=new Array();
+        var form_v=new Array();
+        var form_e=new Array();
+        var force_v=new Array();
+        var force_e=new Array();
 
-        for(var i in Force.internal_dual_edge_map){
-            var v1_index=Force.internal_dual_edge_map[i].f_p.x;
-            var v2_index=Force.internal_dual_edge_map[i].f_p.y;
-            if(v1_index>Force.external_face_ID) v1_index--;
-            if(v2_index>Force.external_face_ID) v2_index--;
-            var e_obj={
-                index:Force.internal_dual_edge_map[i].id,
-                v1:v1_index,
-                v2:v2_index
-            }
-            e.push(JSON.stringify(e_obj));
-        }
-        for(var i in Force.mesh_face){
-            var f=Force.mesh_face[i];
-            if(f.id==Force.external_face_ID) continue;
-            var idx=f.id;
-            if(f.id>Force.external_face_ID) idx--;
-            var v_obj={
-                index: idx,
-                x:f.dual_pos.x,
-                y:f.dual_pos.y,
-                z:f.dual_pos.z
-            }
-            v.push(JSON.stringify(v_obj));        
-        }
-
-        for(var i in Force.mesh_face){
-            var f=Force.mesh_face[i];
-            if(f.external_dual_edge.length>0){
-                for(var j in f.external_dual_edge){
-                    var V_ID=v.length;
-                    var E_ID=e.length;
-                    var v_obj={
-                        index: V_ID,
-                        x:f.dual_pos.x+f.external_dual_edge[j].x,
-                        y:f.dual_pos.y+f.external_dual_edge[j].y,
-                        z:f.dual_pos.z+f.external_dual_edge[j].z
-                    }
-                    v.push(JSON.stringify(v_obj));  
-                    var FID=f.id;
-                    if(FID>Force.external_face_ID) FID--;
-                    var e_obj={
-                        index:E_ID,
-                        v1:FID,
-                        v2:V_ID
-                    }
-                    e.push(JSON.stringify(e_obj));
+        if(Form.half_finished){
+            for(var i=0;i<Form.mesh_vertex.length;i++){
+                var v_obj={
+                    index:i,
+                    x:Form.mesh_vertex[i].pos.x,
+                    y:Form.mesh_vertex[i].pos.y,
+                    z:Form.mesh_vertex[i].pos.z,
                 }
+                form_v.push(JSON.stringify(v_obj));
             }
-        }    
-        localStorage.setItem("Vertices",JSON.stringify(v));
-        localStorage.setItem("Edges",JSON.stringify(e));
-        //localStorage.setItem("Edges",e);
+            for(var i=0;i<Form.mesh_half_edge.length;i+=2){
+                var e_obj={
+                    index:i/2,
+                    v1:Form.mesh_half_edge[i].sym.vert.id,
+                    v2:Form.mesh_half_edge[i].vert.id,
+                }
+                form_e.push(JSON.stringify(e_obj));
+            }
+            localStorage.setItem("Form_Vertices",JSON.stringify(form_v));
+            localStorage.setItem("Form_Edges",JSON.stringify(form_e));
+        }
+        else
+            alert("No Form is constructed");
 
+        if(Force.half_finished){
+            for(var i=0;i<Force.mesh_vertex.length;i++){
+                var v_obj={
+                    index:i,
+                    x:Force.mesh_vertex[i].pos.x,
+                    y:Force.mesh_vertex[i].pos.y,
+                    z:Force.mesh_vertex[i].pos.z,
+                }
+                force_v.push(JSON.stringify(v_obj));
+            }
+            for(var i=0;i<Force.mesh_half_edge.length;i+=2){
+                var e_obj={
+                    index:i/2,
+                    v1:Force.mesh_half_edge[i].sym.vert.id,
+                    v2:Force.mesh_half_edge[i].vert.id,
+                }
+                force_e.push(JSON.stringify(e_obj));
+            }
+            localStorage.setItem("Force_Vertices",JSON.stringify(force_v));
+            localStorage.setItem("Force_Edges",JSON.stringify(force_e));
+        }
+        else 
+            alert("No Force is constructed");
     }
 
     function DrawForce(){
@@ -334,7 +329,7 @@
         }
 
         //Store the result
-        //StoreDualData();
+        StoreData();
     }
 
     function ConnectForceForm(){
@@ -454,6 +449,10 @@
         highlight_edge=new THREE.Line(highlight_edge_geo,LineRenderMaterial,THREE.LineSegments);
         Force_root.add(Force_Face_Render[highlight_face_id]);
         DrawForm();
+
+        //Store the result
+        StoreData();
+
     }
     function keyEvent(event){
         'use strict'
@@ -630,10 +629,9 @@
         guiList.Barycentric_Subdivision={
             Barycentric_Subdiv: Execute_Barycentric_Subdivision
         }
-        guiList.Export_Dual_Structure={
-            Export_Form:function(){
-                //document.getElementById("Dual_Result").click();
-                window.open ('Dual_result.html');
+        guiList.Export_Poly_Data={
+            Export_Poly_Data:function(){
+                window.open ('Poly_result.html');
             }
         }
 
@@ -641,7 +639,7 @@
         datgui.add(guiList.LoadForceGeometry,'Load_Force_file');
         datgui.add(guiList.LoadFormGeometry,'Load_Form_file');
         datgui.add(guiList.Barycentric_Subdivision,'Barycentric_Subdiv');
-        datgui.add(guiList.Export_Dual_Structure,'Export_Form');
+        datgui.add(guiList.Export_Poly_Data,'Export_Poly_Data');
 
         
         viewResize();

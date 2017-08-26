@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>
+		dual_result
+	</title>
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+</head>
+<body>
+	<script>
+		window.onload = function(){
+			console.log("here");
+			var form_vertices=JSON.parse(localStorage.Form_Vertices);
+			var form_edges=JSON.parse(localStorage.Form_Edges);
+			var force_vertices=JSON.parse(localStorage.Force_Vertices);
+			var force_edges=JSON.parse(localStorage.Force_Edges);
+			//console.log(vertices);
+			//var edges=localStorage.Edges;
+			document.write("<XMP>")
+			if(form_vertices==undefined || form_edges==undefined)
+				document.write("No form data to be shown");
+			else{
+				document.write("Form Graph:");
+				document.write("\r\n");
+				document.write("Vertices:");	
+				document.write("\r\n");
+				document.write("idx\tpos_X\t\tpos_Y\t\tpos_Z\r");
+				for(var i in form_vertices)
+				{
+					var form_v_obj=JSON.parse(form_vertices[i]);
+					document.write(form_v_obj.index+"\t"
+						+form_v_obj.x.toFixed(6)+"\t"
+						+form_v_obj.y.toFixed(6)+"\t"
+						+form_v_obj.z.toFixed(6)+"\r");
+				}
+				document.write("\r\n\n");			
+				document.write("Edges:");
+				document.write("\r\n");
+				document.write("idx\tv_idx1\tv_idx2\r");
+				for(var i in form_edges)
+				{
+					var form_e_obj=JSON.parse(form_edges[i]);
+					document.write(form_e_obj.index+"\t"
+						+form_e_obj.v1+"\t"
+						+form_e_obj.v2+"\r");
+				}
+				document.write("\r\n\r\n");	
+			}
+
+			if(force_vertices==undefined || force_edges==undefined)
+				document.write("No force data to be shown");
+			else{
+				document.write("Force Graph:");
+				document.write("\r\n");
+				document.write("Vertices:");	
+				document.write("\r\n");
+				document.write("idx\tpos_X\t\tpos_Y\t\tpos_Z\r");
+				for(var i in force_vertices)
+				{
+					var force_v_obj=JSON.parse(force_vertices[i]);
+					document.write(form_v_obj.index+"\t"
+						+force_v_obj.x.toFixed(6)+"\t"
+						+force_v_obj.y.toFixed(6)+"\t"
+						+force_v_obj.z.toFixed(6)+"\r");
+				}
+				document.write("\r\n\n");			
+				document.write("Edges:");
+				document.write("\r\n");
+				document.write("idx\tv_idx1\tv_idx2\r");
+				for(var i in force_edges)
+				{
+					var force_e_obj=JSON.parse(force_edges[i]);
+					document.write(force_e_obj.index+"\t"
+						+force_e_obj.v1+"\t"
+						+force_e_obj.v2+"\r");
+				}
+			}
+			
+			document.write("</XMP>")
+
+		}
+	</script>
+
+
+</body>
+</html>
