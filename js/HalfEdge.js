@@ -56,6 +56,7 @@ function HalfEdge(id){
     this.Perpendicular_hl_ID=undefined; // Available after the dual structure is computed.
 	this.external=false;
 	this.connected=false;
+    this.fliped=false;
 }
 function Node(){
 	this.Sort_Face_ID=[];

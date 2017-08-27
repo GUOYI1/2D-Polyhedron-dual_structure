@@ -3,7 +3,7 @@ function createSphereMesh(center,material,radius){
     if(center==undefined)
         return;
     if(radius==undefined)
-        radius=1.8;
+        radius=1.5;
     var spheregeo=new THREE.SphereGeometry(radius, 15, 15);
     var sphere = new THREE.Mesh(spheregeo, material);
     sphere.position.x=center.x;
@@ -49,10 +49,10 @@ function createCylinderArrowMesh(pointX, pointY, material, radius, radiusCone, e
     // fixedConeLength = fixedConeLength !== undefined ? fixedConeLength : 4;
 
     if (radiusCone === undefined) {
-        radiusCone = 2 * radius;
+        radiusCone = 2.5 * radius;
     }
 
-    // edgeLengthRatio = edgeLengthRatio !== undefined ? edgeLengthRatio : 0.7 ;
+    edgeLengthRatio = edgeLengthRatio != undefined ? edgeLengthRatio : 0.75 ;
 
     var pointMid = new THREE.Vector3().addVectors(pointX, edgeLengthRatio * direction);
 

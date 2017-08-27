@@ -1,34 +1,34 @@
 //HalfEdge.js must be included
-BaryCentricSubdivision=function(Force,Form,f_id)
+BaryCentricSubdivision=function(ForceMesh,FormMesh,f_id)
 {
-	//Subdivide Force and update the Form
-	if(!Force.half_finished || !Form.half_finished){
+	//Subdivide ForceMesh and update the FormMesh
+	if(!ForceMesh.half_finished || !FormMesh.half_finished){
 		alert("HalfEdge structure is unfinished.Subdivision is not approved");
 		return;
 	}
-	if(f_id==Force.external_face_ID) 
+	if(f_id==ForceMesh.external_face_ID) 
 	{
 		alert("Cannot Subdivide the External Face")
 		return;
 	}
-	var start=Force.mesh_face[f_id].startedge;
+	var start=ForceMesh.mesh_face[f_id].startedge;
 	var he=start;
-	var Force_he_num=Force.mesh_half_edge.length;
-	var Force_v_num=Force.mesh_vertex.length;
-	var Force_f_num=Force.mesh_face.length;
-	var Form_he_num=Form.mesh_half_edge.length;
-	var Form_v_num=Form.mesh_vertex.length;
-	var ex_group=Force.mesh_face[f_id].external_dual_edge;	
+	var Force_he_num=ForceMesh.mesh_half_edge.length;
+	var Force_v_num=ForceMesh.mesh_vertex.length;
+	var Force_f_num=ForceMesh.mesh_face.length;
+	var Form_he_num=FormMesh.mesh_half_edge.length;
+	var Form_v_num=FormMesh.mesh_vertex.length;
+	var ex_group=ForceMesh.mesh_face[f_id].external_dual_edge;	
 
-	/********************Update Force*************************/ 
+	/********************Update ForceMesh*************************/ 
 	//Create a new node;
 	var v= new Vertex(Force_v_num);
 	Force_v_num++;
-	v.pos=Force.mesh_face[f_id].center_pos;
-	Force.mesh_vertex.push(v);
+	v.pos=ForceMesh.mesh_face[f_id].center_pos;
+	ForceMesh.mesh_vertex.push(v);
 
 
-	//Update the Force halfEdge data Structure
+	//Update the ForceMesh halfEdge data Structure
 	var head_he_start=new HalfEdge();
 	var head_he=head_he_start;
 	do
@@ -64,7 +64,7 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 			new_face=new Face(Force_f_num);
 			new_face.startedge=he;
 			he.face=new_face;
-			Force.mesh_face.push(new_face);
+			ForceMesh.mesh_face.push(new_face);
 			Force_f_num++;
 		}
 		new_he.face=new_face;
@@ -81,8 +81,8 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 			}
 		}
 
-		Force.mesh_half_edge.push(new_he);
-		Force.mesh_half_edge.push(new_he_sym);
+		ForceMesh.mesh_half_edge.push(new_he);
+		ForceMesh.mesh_half_edge.push(new_he_sym);
 		Force_he_num+=2;
 		he=temp;
 		head_he=new_he_sym;
@@ -90,8 +90,8 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 	v.edge=he.next;
 
 
-	/********************Update Form*************************/ 
-	var form_e=Form.mesh_half_edge[he.Perpendicular_hl_ID]
+	/********************Update FormMesh*************************/ 
+	var form_e=FormMesh.mesh_half_edge[he.Perpendicular_hl_ID]
 	var original_form_pos=new THREE.Vector3().copy(form_e.vert.pos);
 	var original_direction=new THREE.Vector3().subVectors(form_e.sym.vert.pos,original_form_pos).normalize();
 
@@ -99,14 +99,14 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 	if(ex_group.length!=0) min_origin_length=ex_group[0].vector.length();
 	var max_dual_length=1;
 
-	var new_form_face=new Face(Form.mesh_face.length);
+	var new_form_face=new Face(FormMesh.mesh_face.length);
 	form_e.vert.pos=new THREE.Vector3().addVectors(original_form_pos,original_direction);
 	form_e.vert.edge=form_e;
 	var first_new_he=undefined,end_new_he=undefined;
 
 	do{
 		var next_he=he.next.sym.next;
-		var next_form_e=Form.mesh_half_edge[next_he.Perpendicular_hl_ID];
+		var next_form_e=FormMesh.mesh_half_edge[next_he.Perpendicular_hl_ID];
 		var new_v=new Vertex(Form_v_num);
 		var new_he=new HalfEdge(Form_he_num);
 		var new_he_sym=new HalfEdge(Form_he_num+1);
@@ -127,13 +127,13 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 	 		next_he.face.Form_Vert_ID=new_v.id;
 	 		new_v.edge=new_he;
 	 		next_form_e.vert=new_v;
-	 		Form.mesh_vertex.push(new_v);
+	 		FormMesh.mesh_vertex.push(new_v);
 	 		Form_v_num++;
 		}
 		else
 			new_v=next_form_e.vert;
 
-		//Update the halfedge of Form
+		//Update the halfedge of FormMesh
 
 		new_he.vert=new_v;
 		new_he.face=new_form_face;
@@ -150,8 +150,8 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 
 		new_he.sym=new_he_sym;
 		new_he_sym.sym=new_he;
-		Form.mesh_half_edge.push(new_he);
-		Form.mesh_half_edge.push(new_he_sym);	
+		FormMesh.mesh_half_edge.push(new_he);
+		FormMesh.mesh_half_edge.push(new_he_sym);	
 		Form_he_num+=2;
 		if(first_new_he==undefined) first_new_he=new_he;
 		else
@@ -171,7 +171,7 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 	var scale=min_origin_length/(3*max_dual_length);
 	new_form_face.startedge=first_new_he;
 	new_form_face.center_pos=original_form_pos;
-	Form.mesh_face.push(new_form_face);
+	FormMesh.mesh_face.push(new_form_face);
 	form_e=first_new_he;
 	do{
 		form_e.vert.pos=new THREE.Vector3().addVectors(form_e.vert.pos.multiplyScalar(scale),
@@ -184,17 +184,17 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 
 	/********************Update dual structure*************************/ 
 	
-	if(Force.dual_finished){
-		var map_index=Force.internal_dual_edge_map.length;
-		var center_node=new Node(Force.node.length);
+	if(ForceMesh.dual_finished){
+		var map_index=ForceMesh.internal_dual_edge_map.length;
+		var center_node=new Node(ForceMesh.node.length);
 		center_node.vert=v;
 		v.node=center_node;
-		Force.node.push(center_node);
+		ForceMesh.node.push(center_node);
 		he=v.edge;
 		do{
 			//Update the center node
 			center_node.Sort_Face_ID.push(he.sym.face.id);
-			he.sym.face.dual_pos=Form.mesh_vertex[he.sym.face.Form_Vert_ID].pos;
+			he.sym.face.dual_pos=FormMesh.mesh_vertex[he.sym.face.Form_Vert_ID].pos;
 			var node_face_pair_obj=new Node_Face_Pair;
 			var reverse_face_pair_obj=new Node_Face_Pair;
 
@@ -208,15 +208,15 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 				sign=-1;
 				in_edge_obj.f_p=new THREE.Vector2(node_face_pair_obj.f_p.y,node_face_pair_obj.f_p.x);
 			}
-			var startPos=Form.mesh_vertex[Force.mesh_face[in_edge_obj.f_p.x].Form_Vert_ID].pos;
-			var endPos=Form.mesh_vertex[Force.mesh_face[in_edge_obj.f_p.y].Form_Vert_ID].pos;
+			var startPos=FormMesh.mesh_vertex[ForceMesh.mesh_face[in_edge_obj.f_p.x].Form_Vert_ID].pos;
+			var endPos=FormMesh.mesh_vertex[ForceMesh.mesh_face[in_edge_obj.f_p.y].Form_Vert_ID].pos;
 			var dir=new THREE.Vector3().subVectors(endPos,startPos);
 			in_edge_obj.length=dir.length();
 			in_edge_obj.direction_vector=dir.normalize();
 			in_edge_obj.id=map_index;
 			if(sign==1) in_edge_obj.hl_ID=he.id;
 			else in_edge_obj.hl_ID=he.sym.id;
-			Force.internal_dual_edge_map.push(in_edge_obj);
+			ForceMesh.internal_dual_edge_map.push(in_edge_obj);
 			node_face_pair_obj.dual_edge_ID=map_index;
 			reverse_face_pair_obj.dual_edge_ID=map_index;
 			center_node.face_pair.push(node_face_pair_obj);
@@ -234,40 +234,40 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 					idx1=n.face_pair.length;
 				n.face_pair[idx].f_p.x=he.sym.face.id;
 				n.Sort_Face_ID[idx]=he.sym.face.id;
-				Force.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].length-=(new THREE.Vector3().subVectors(
+				ForceMesh.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].length-=(new THREE.Vector3().subVectors(
 					startPos,original_form_pos).length());
 				if(he.sym.face.id!=f_id)
 				{
 					if(n.face_pair[idx].f_p.y>f_id)
-						Force.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].direction_vector.multiplyScalar(-1);
-					Force.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].f_p.x=n.face_pair[idx].f_p.y;
-					Force.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].f_p.y=n.face_pair[idx].f_p.x;
+						ForceMesh.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].direction_vector.multiplyScalar(-1);
+					ForceMesh.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].f_p.x=n.face_pair[idx].f_p.y;
+					ForceMesh.internal_dual_edge_map[n.face_pair[idx].dual_edge_ID].f_p.y=n.face_pair[idx].f_p.x;
 				}
 				n.face_pair[idx1-1].f_p.y=he.face.id;
 				n.face_pair.splice(idx1,0,reverse_face_pair_obj);
 				n.Sort_Face_ID.splice(idx1,0,he.face.id);
-				Force.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].length-=(new THREE.Vector3().subVectors(
+				ForceMesh.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].length-=(new THREE.Vector3().subVectors(
 					endPos,original_form_pos).length());
 				if(he.face.id!=f_id)
 				{
 					if(n.face_pair[idx1-1].f_p.x>f_id)
-						Force.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].direction_vector.multiplyScalar(-1);
-					Force.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].f_p.x=n.face_pair[idx1-1].f_p.x;
-					Force.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].f_p.y=n.face_pair[idx1-1].f_p.y;
+						ForceMesh.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].direction_vector.multiplyScalar(-1);
+					ForceMesh.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].f_p.x=n.face_pair[idx1-1].f_p.x;
+					ForceMesh.internal_dual_edge_map[n.face_pair[idx1-1].dual_edge_ID].f_p.y=n.face_pair[idx1-1].f_p.y;
 				}
 
 			}
 			he=he.next.sym;
 		}while(he!=v.edge);	
 	}
-	else if(Form.dual_finished){
+	else if(FormMesh.dual_finished){
 		new_form_face.dual_pos=v.pos;
 		do{
 			var n=form_e.vert.node;
 			if(n==undefined){
-				n=new Node(Form.node.length);
+				n=new Node(FormMesh.node.length);
 				n.vert=form_e.vert;
-				Form.node.push(n);
+				FormMesh.node.push(n);
 			}
 			else{
 				n.Sort_Face_ID=[];
@@ -275,13 +275,13 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 			}
 			var sign=1;
 			var temp_he=n.vert.edge;
-			map_index=Form.internal_dual_edge_map.length;
+			map_index=FormMesh.internal_dual_edge_map.length;
     		do
 	    	{
 	    		n.Sort_Face_ID.push(temp_he.sym.face.id); 
 	    		var node_face_pair_obj=new Node_Face_Pair();
 	    	 	node_face_pair_obj.f_p=new THREE.Vector2(temp_he.sym.face.id,temp_he.face.id);	
-	    		var index=Form.internal_dual_edge_map.findIndex(function(x) { 
+	    		var index=FormMesh.internal_dual_edge_map.findIndex(function(x) { 
 	    		return (x.f_p.x == node_face_pair_obj.f_p.x && x.f_p.y == node_face_pair_obj.f_p.y)
 	    				|| (x.f_p.x==node_face_pair_obj.f_p.y && x.f_p.y==node_face_pair_obj.f_p.x); });
 	    		if(index==-1){
@@ -301,7 +301,7 @@ BaryCentricSubdivision=function(Force,Form,f_id)
 		    		in_edge_obj.length=new THREE.Vector3().subVectors(temp_he.face.dual_pos,temp_he.sym.face.dual_pos).length();
 	                if(sign==-1) in_edge_obj.hl_ID=temp_he.id;
 	                else in_edge_obj.hl_ID=temp_he.sym.id;              
-		    		Form.internal_dual_edge_map.push(in_edge_obj);
+		    		FormMesh.internal_dual_edge_map.push(in_edge_obj);
 		    		node_face_pair_obj.dual_edge_ID=map_index;
 		    		map_index++;
 		    	}
