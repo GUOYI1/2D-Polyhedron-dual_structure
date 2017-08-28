@@ -390,9 +390,7 @@
     }
     function DrawForce(){
         'use strict'
-        // for(int i=0;i<Force.root.children.length;i++){
-        //     Force.root.remove(Force.root.children[i]);
-        // }
+
         if(scene2.children.length>0)
             scene2.remove(Force.root);
         Force.root=new THREE.Object3D();
@@ -461,22 +459,31 @@
             alert("No Form mesh Geometry constructed")
             return;
         }
+
         for(var i=0;i<Form.diagram.mesh_vertex.length;i++){
             var pos=new THREE.Vector3().subVectors(Form.diagram.mesh_vertex[i].pos,Form.diagram.fixed_center);
             pos.multiplyScalar(Form.scale);
-            Form.Vert_Render[i]=createSphereMesh(pos,Form.Material[4].clone(),1.25*guiList.Parameter.MaxThickness);
+            var r;
+            if(Form.diagram.mesh_vertex[i].radius==undefined)
+                r=guiList.Parameter.MaxThickness*1.25;
+            else
+                r=Form.diagram.mesh_vertex[i].radius/MaxForceLength*guiList.Parameter.MaxThickness*1.35;
+
+            Form.Vert_Render[i]=createSphereMesh(pos,Form.Material[4].clone(),r);
             Form.Vert_Render[i].type="Form_Vert";
             Form.Vert_Render[i].idx=i;
             Form.Vert_Render[i].ForceFaceID=Form.diagram.mesh_vertex[i].Force_Face_ID;
             Form.Vert_Render[i].base_color=Form.Material[4].color;
-            Form.root.add(Form.Vert_Render[i]);
+            if(!Form.diagram.mesh_vertex[i].external)
+                Form.root.add(Form.Vert_Render[i]);
         }
+
         for(var i=0;i<Form.diagram.mesh_half_edge.length;i+=2){
             var pos1= new THREE.Vector3().subVectors(Form.diagram.mesh_half_edge[i].vert.pos,Form.diagram.fixed_center);
             var pos2= new THREE.Vector3().subVectors(Form.diagram.mesh_half_edge[i].sym.vert.pos,Form.diagram.fixed_center);
             pos1.multiplyScalar(Form.scale);
             pos2.multiplyScalar(Form.scale);
-            var thick
+            var thick;
             var material;
             if(Form.diagram.mesh_half_edge[i].connected){
                 thick=0.5*guiList.Parameter.MaxThickness;
@@ -510,7 +517,8 @@
             Form.Edge_Render[i/2].ForceEdgeID=undefined;
             if(Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID!=undefined)
                 Form.Edge_Render[i/2].ForceEdgeID=parseInt(Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID/2);
-            Form.root.add(Form.Edge_Render[i/2]); 
+            if(!Form.diagram.mesh_half_edge[i].connected)
+                Form.root.add(Form.Edge_Render[i/2]); 
         }
         scene1.add(Form.root);
     }
@@ -525,6 +533,9 @@
             else
                 Force.scale=camera.position.z*Math.tan(camera.fov/360*Math.PI)/(0.75*Force_aspect*Force_range.length());
         }
+
+
+
         if(Form.diagram.half_finished){
             var Form_range=new THREE.Vector3().subVectors(Form.diagram.bound[1],Form.diagram.bound[0]);
             var Form_aspect=views[0].window.width / views[0].window.height;
@@ -586,6 +597,8 @@
 
     function ConnectForceForm(){
         'use strict'
+
+        //Build 
         var mesh,dual;
         if(Import_Mesh_Type=="Force"){
             for(var i=0;i<Force.diagram.mesh_face.length-1;i++){
@@ -639,6 +652,8 @@
                 dual.mesh_half_edge[2*i].sym.fliped=true;
             }
         }
+
+
         for(var i=0;i<mesh.external_dual_edge_map.length;i++){
             var id=mesh.external_dual_edge_map[i].hl_ID;
             var idx=2*(i+mesh.internal_dual_edge_map.length);
@@ -646,6 +661,22 @@
             dual.mesh_half_edge[idx].sym.Perpendicular_hl_ID=mesh.mesh_half_edge[id].sym.id;
             mesh.mesh_half_edge[id].Perpendicular_hl_ID=idx;
             mesh.mesh_half_edge[id].sym.Perpendicular_hl_ID=dual.mesh_half_edge[idx].sym.id;
+        }
+
+
+        for(var i=0;i<Form.diagram.mesh_vertex.length;i++){
+            if(Form.diagram.mesh_vertex[i].Force_Face_ID!=undefined){
+                var f=Force.diagram.mesh_face[Form.diagram.mesh_vertex[i].Force_Face_ID];
+                var e=f.startedge;
+                var maxthick=0;
+                do{
+                    var thick=new THREE.Vector3().subVectors(e.vert.pos,e.sym.vert.pos).length();
+                    if(thick>maxthick)
+                        maxthick=thick;
+                    e=e.next;
+                }while(e!=f.startedge)
+                Form.diagram.mesh_vertex[i].radius=maxthick;
+            }
         }
     }
 
@@ -715,7 +746,6 @@
                 Force.Face_Render[i].FormVertID=Force.diagram.mesh_face[i].Form_Vert_ID;
                 Force.root.add(Force.Face_Render[i]);
             }
-            console.log("here");
         }
         DrawForm();
 
@@ -734,74 +764,6 @@
             multFace=true;
         if(event.shiftKey==1)
             AllFace=true;
-    //     var keynum= window.event ? event.keyCode : event.which;
-    //     var keychar = String.fromCharCode(keynum);
-    //     if(highlight_edge_id!=undefined)
-    //     {
-    //         switch(keychar){
-    //             case 'N':
-    //                 highlight_edge_id=Force.diagram.mesh_half_edge[highlight_edge_id].next.id;
-    //                 highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-    //                     Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //                 highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].vert.pos, 
-    //                     Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //                 highlight_edge.geometry.verticesNeedUpdate=true;
-    //                 break;
-    //             case 'S':
-    //                 highlight_edge_id=Force.diagram.mesh_half_edge[highlight_edge_id].sym.id;
-    //                 highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-    //                     Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //                 highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].vert.pos, 
-    //                     Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //                 highlight_edge.geometry.verticesNeedUpdate=true;
-    //                 break;
-    //             case 'V':
-    //                 highlight_point_id=Force.diagram.mesh_half_edge[highlight_edge_id].vert.id;
-    //                 highlight_point.geometry.vertices[0]=(new THREE.Vector3().subVectors(Force.diagram.mesh_vertex[highlight_point_id].pos,
-    //                     Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //                 highlight_point.geometry.verticesNeedUpdate=true;
-    //                 Force.root.add(highlight_point);
-    //                 Force.root.remove(highlight_edge);                    
-    //                 highlight_edge_id=undefined;
-    //                 break;
-    //             case 'F':
-    //                 highlight_face_id=Force.diagram.mesh_half_edge[highlight_edge_id].face.id;
-    //                 Force.root.add(Force.Face_Render[highlight_face_id]);
-    //                 Force.root.remove(highlight_edge);
-    //                 highlight_edge_id=undefined;               
-    //                 break;
-    //         }  
-    //     }
-    //     else if(highlight_point_id!=undefined)
-    //     {
-    //         if(keychar=='L')
-    //         {
-    //             highlight_edge_id=Force.diagram.mesh_vertex[highlight_point_id].edge.id;
-    //             highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-    //                 Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //             highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].vert.pos, 
-    //                 Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //             Force.root.add(highlight_edge);
-    //             Force.root.remove(highlight_point); 
-    //             highlight_edge.geometry.verticesNeedUpdate=true;  
-    //             highlight_point_id=undefined;                
-    //         }
-    //     }
-    //     else if(highlight_face_id!=undefined)
-    //     {
-    //         if(keychar=='L')
-    //         {
-    //             highlight_edge_id=Force.diagram.mesh_face[highlight_face_id].startedge.id;
-    //             highlight_edge.geometry.vertices[0]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].sym.vert.pos, 
-    //                 Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //             highlight_edge.geometry.vertices[1]= (new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[highlight_edge_id].vert.pos, 
-    //                 Force.diagram.fixed_center)).multiplyScalar(Force.scale);
-    //             Force.root.add(highlight_edge);
-    //             Force.root.remove(Force.Face_Render[highlight_face_id]);
-    //             highlight_edge.geometry.verticesNeedUpdate=true;
-    //             highlight_face_id=undefined;               
-    //         }
-    //     }
 
     }
     function pick(){

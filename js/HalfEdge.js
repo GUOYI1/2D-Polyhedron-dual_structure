@@ -28,8 +28,11 @@ function Vertex( id ){
 	else
 		this.id=parseInt(id);
     this.Force_Face_ID=undefined;// Available only when the geometry represents the Form diagram
+    this.radius=undefined;// Available only when the geometry represents the Form diagram
 	this.edge=undefined;
 	this.pos=undefined;
+
+    this.external=undefined;
 	this.node=undefined;
 	this.external_node=undefined;
 }
@@ -40,8 +43,9 @@ function Face(id){
 		this.id=parseInt(id);
     this.Form_Vert_ID=undefined;// Available only when the geometry represents the Force diagram
 	this.startedge=undefined;
+    this.center_pos=undefined;
+
 	this.dual_pos=undefined;
-	this.center_pos=undefined;
 	this.external_dual_edge=[];
 }
 function HalfEdge(id){
@@ -54,7 +58,7 @@ function HalfEdge(id){
 	this.face=undefined;
 	this.sym=undefined;
     this.Perpendicular_hl_ID=undefined; // Available after the dual structure is computed.
-	this.external=false;
+	this.external=false;       //Refers to the external forces of the force diagram.For form diagram, it is always false;
 	this.connected=false;
     this.fliped=false;
 }
@@ -202,6 +206,8 @@ Mesh.prototype.buildHalfEdgeStructure=function(vertices,edges){
         		continue;
         	}
         	else{
+                if(vertex_edge_count[edgepair[e].x]==1) this.mesh_vertex[edgepair[e].x].external=true;
+                if(vertex_edge_count[edgepair[e].y]==1) this.mesh_vertex[edgepair[e].y].external=true;
         		he.external=true;
         		he_sym.external=true;
         	}
