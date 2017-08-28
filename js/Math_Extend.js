@@ -11,7 +11,7 @@ function Line_intersection_2D(A1,B1,C1,A2,B2,C2)
 } 
 //Extension for numeric.js
 //Linear_Independent_Group, column vector
-function Maxium_Linear_Independent_Group(m){
+function Maxium_Linear_Independent_Group(m,tol){
     'use strict'
     var matrix=new Array(m.length);
     for(var i=0;i<m.length;i++)
@@ -26,7 +26,7 @@ function Maxium_Linear_Independent_Group(m){
             break;
         }
         var i = r;
-        while (Math.abs(matrix[i][lead])<0.00001) {
+        while (Math.abs(matrix[i][lead])<tol) {
             i++;
             if (rows == i) {
                 i = r;
@@ -61,7 +61,7 @@ function Maxium_Linear_Independent_Group(m){
     for(var i=0;i<matrix.length;i++){
         var flag=false;
         for(var j=start;j<matrix[i].length;j++){
-            if(matrix[i][j]>0.00001){
+            if(matrix[i][j]>tol){
                 flag=true;
                 idx_Independent.push(j);
                 result.push(matrix_T[j]);
