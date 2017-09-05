@@ -141,79 +141,6 @@
     var ForceIntersected=[];
     var Force_Selected_Color=new THREE.Color(0xe46a6a);
     var Responding_Color=new THREE.Color(0xFFFFFF);
-    // var Force,Form;
-    
-    // var Force_root;
-    // var Form_root;
-    // var Force_Line_Render=[];
-    // var Force_Face_Render=[];
-    // var Form_Vert_Render=[];
-    // var Form_Edge_Render=[];
-
-    
-    // var FormIntersected=null,ForceResponding=null;
-    // var ForceIntersected=null;
-    // var Force_Material=[
-    //     //Edge 
-    //     new THREE.LineBasicMaterial({
-    //     color: 0x156289
-    //     }),
-
-    //     //Face
-    //     new THREE.MeshBasicMaterial( { 
-    //     color: 0x156289, 
-    //     opacity: 0.1,
-    //     transparent: true,
-    //     side: THREE.DoubleSide,
-    //     depthWrite: false
-    //     }),
-    // ]
-
-    // var Form_Material=[
-    //     //Internal edges
-    //     new THREE.MeshBasicMaterial( { 
-    //     color: 0x156289, 
-    //     opacity: 0.6,
-    //     transparent:true,
-    //     side: THREE.DoubleSide,
-    //     depthWrite: false
-    //     }),
-
-    //     //Fliped internal edges
-    //     new THREE.MeshBasicMaterial( { 
-    //     color: 0xFF0000, 
-    //     opacity: 0.6,
-    //     transparent:true,
-    //     side: THREE.DoubleSide,
-    //     depthWrite: false
-    //     }),
-
-    //     //External Edges
-    //     new THREE.MeshBasicMaterial( { 
-    //     color: 0x7FFF00, 
-    //     opacity: 0.6,
-    //     transparent:true,
-    //     side: THREE.DoubleSide,
-    //     depthWrite: false
-    //     }),
-
-    //     //Connected Boundary Edges
-    //     new THREE.MeshBasicMaterial( { 
-    //     color: 0xFFFFFF, 
-    //     opacity: 0.6,
-    //     transparent:true,
-    //     side: THREE.DoubleSide,
-    //     depthWrite: false
-    //     }),
-
-    //     //Vertex
-    //     new THREE.MeshBasicMaterial( { 
-    //     color: 0xEEC900, 
-    //     })
-    // ]
-
-    // var Force_scale=0;
-    // var Form_scale=0;
 
 
     function readJson(event){
@@ -491,7 +418,7 @@
                 Form.Edge_Render[i/2]=createCylinderMesh(pos1,pos2,material,thick);
             }
             else{
-                if(Force.diagram.half_finished){
+                if(Force.diagram.half_finished && Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID!=undefined){
                     var force_he=Force.diagram.mesh_half_edge[Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID];
                     var len=new THREE.Vector3().subVectors(force_he.vert.pos,force_he.sym.vert.pos).length();
                     thick=len/MaxForceLength*guiList.Parameter.MaxThickness;
@@ -525,6 +452,8 @@
 
     function ReComputeMeshScale(){
         'use strict'
+        Force.scale=1;
+        Form.scale=1;
         if(Force.diagram.half_finished){
             var Force_range=new THREE.Vector3().subVectors(Force.diagram.bound[1],Force.diagram.bound[0]);
             var Force_aspect=views[1].window.width / views[1].window.height;
@@ -552,6 +481,7 @@
         var mesh=Import_Mesh_Type=="Force"? Force.diagram:Form.diagram;
         var dual=Import_Mesh_Type=="Force"? Form.diagram:Force.diagram;
         var v=[],e=[];
+        MaxForceLength=undefined;
 
        
         mesh.buildHalfEdgeStructure(json.vertices,json.edges);       
