@@ -85,7 +85,7 @@
             transparent: true,
             side: THREE.DoubleSide,
             depthWrite: false
-            }),
+            })
         ]
     }
     var Form={
@@ -115,27 +115,34 @@
 
             //External Edges
             new THREE.MeshBasicMaterial( { 
-            color: 0x7FFF00, 
-            opacity: 0.6,
-            transparent:true,
-            side: THREE.DoubleSide,
-            depthWrite: false
+            color: 0x009600
             }),
 
             //Connected Boundary Edges
-            new THREE.MeshBasicMaterial( { 
-            color: 0xFFFFFF, 
-            opacity: 0.6,
-            transparent:true,
-            side: THREE.DoubleSide,
-            depthWrite: false
-            }),
+            new THREE.LineDashedMaterial( { 
+                color: 0xcccccc, 
+                dashSize: 0.4,
+                gapSize: 0.2,
+                linewidth: 1        
+            } ),
 
             //Vertex
+            // new THREE.MeshBasicMaterial( { 
+            // color: 0xCCCCCC
+            // })
+            new THREE.ShaderMaterial( {
+                uniforms: NodeShader.uniforms,
+                vertexShader: NodeShader.vertexShader,
+                fragmentShader: NodeShader.fragmentShader
+            } ),
+
+            //Vertex highlight material
             new THREE.MeshBasicMaterial( { 
-            color: 0xEEC900, 
+            color: 0xFFFFFF
             })
-        ]
+        ],
+
+        strengthColorScaler:undefined
     }
     var FormIntersected=null,ForceResponding=null;
     var ForceIntersected=[];
@@ -166,19 +173,27 @@
 
         if(Form.diagram.half_finished){
             for(var i=0;i<Form.diagram.mesh_vertex.length;i++){
+                // var face_ID=Form.diagram.mesh_vertex[i].Force_Face_ID;
+                // if(face_ID!=undefined)
+                //     face_ID=face_ID>Force.diagram.external_face_ID?face_ID-1:face_ID;
                 var v_obj={
                     index:i,
                     x:Form.diagram.mesh_vertex[i].pos.x,
                     y:Form.diagram.mesh_vertex[i].pos.y,
                     z:Form.diagram.mesh_vertex[i].pos.z,
                 }
+
                 form_v.push(JSON.stringify(v_obj));
             }
             for(var i=0;i<Form.diagram.mesh_half_edge.length;i+=2){
+                var Force_Edge_ID=-1;
+                if(Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID!=undefined)
+                    Force_Edge_ID=parseInt(Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID/2);
                 var e_obj={
                     index:i/2,
                     v1:Form.diagram.mesh_half_edge[i].sym.vert.id,
                     v2:Form.diagram.mesh_half_edge[i].vert.id,
+                    Force_Edge_ID:Force_Edge_ID,
                 }
                 form_e.push(JSON.stringify(e_obj));
             }
@@ -224,13 +239,14 @@
                 if(FormIntersected && FormIntersected!=intersects[0].object || !FormIntersected){
                     ReleaseHighlight();
                     FormIntersected=intersects[0].object;
-                    FormIntersected.material.color=Responding_Color;
+                    
                     if(FormIntersected.type=="Form_Edge"){
                         if(FormIntersected.ForceEdgeID!=undefined){
                             var id=FormIntersected.ForceEdgeID;
                             ForceResponding=Force.Line_Render[id];
                             ForceResponding.material.color=Responding_Color;
                         }
+                        FormIntersected.material.color=Responding_Color;
                     }
                     else if(FormIntersected.type=="Form_Vert"){
                         if(FormIntersected.ForceFaceID!=undefined){
@@ -238,6 +254,7 @@
                             ForceResponding=Force.Face_Render[id];
                             ForceResponding.material.color=Responding_Color;              
                         }
+                        FormIntersected.material=Form.Material[5];
                     }
                 }
             }
@@ -307,7 +324,10 @@
     function ReleaseHighlight(){
         'use strict'
         if(FormIntersected){
-            FormIntersected.material.color=FormIntersected.base_color;
+            if(FormIntersected.type=="Form_Vert")
+                FormIntersected.material=Form.Material[4];
+            else
+                FormIntersected.material.color=FormIntersected.base_color;
             FormIntersected=null;
         }
         if(ForceResponding){
@@ -317,7 +337,6 @@
     }
     function DrawForce(){
         'use strict'
-
         if(scene2.children.length>0)
             scene2.remove(Force.root);
         Force.root=new THREE.Object3D();
@@ -396,11 +415,11 @@
             else
                 r=Form.diagram.mesh_vertex[i].radius/MaxForceLength*guiList.Parameter.MaxThickness*1.35;
 
-            Form.Vert_Render[i]=createSphereMesh(pos,Form.Material[4].clone(),r);
+            Form.Vert_Render[i]=createSphereMesh(pos,Form.Material[4],r);
             Form.Vert_Render[i].type="Form_Vert";
             Form.Vert_Render[i].idx=i;
             Form.Vert_Render[i].ForceFaceID=Form.diagram.mesh_vertex[i].Force_Face_ID;
-            Form.Vert_Render[i].base_color=Form.Material[4].color;
+            Form.Vert_Render[i].base_color=new THREE.Color(0X0000);
             if(!Form.diagram.mesh_vertex[i].external)
                 Form.root.add(Form.Vert_Render[i]);
         }
@@ -415,7 +434,10 @@
             if(Form.diagram.mesh_half_edge[i].connected){
                 thick=0.5*guiList.Parameter.MaxThickness;
                 material=Form.Material[3].clone();
-                Form.Edge_Render[i/2]=createCylinderMesh(pos1,pos2,material,thick);
+                var Dash_Geo=new THREE.Geometry();
+                Dash_Geo.vertices.push(pos1,pos2);
+                Dash_Geo.computeLineDistances();
+                Form.Edge_Render[i/2]= new THREE.Line(Dash_Geo,Form.Material[3].clone(),THREE.LineSegments);
             }
             else{
                 if(Force.diagram.half_finished && Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID!=undefined){
@@ -431,10 +453,12 @@
                     Form.Edge_Render[i/2]=createCylinderArrowMesh(pos1,pos2,material,thick);
                 }
                 else{
-                    if(Force.diagram.dual_finished && Form.diagram.mesh_half_edge[i].fliped)
+                    if(Force.diagram.dual_finished && Form.diagram.mesh_half_edge[i].fliped){
                         material=Form.Material[1].clone();
+                    }
                     else
                         material=Form.Material[0].clone();
+                    material.color=new THREE.Color(Form.strengthColorScaler(thick));
                     Form.Edge_Render[i/2]=createCylinderMesh(pos1,pos2,material,thick);
                 }
             }
@@ -444,7 +468,7 @@
             Form.Edge_Render[i/2].ForceEdgeID=undefined;
             if(Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID!=undefined)
                 Form.Edge_Render[i/2].ForceEdgeID=parseInt(Form.diagram.mesh_half_edge[i].Perpendicular_hl_ID/2);
-            if(!Form.diagram.mesh_half_edge[i].connected)
+            //if(!Form.diagram.mesh_half_edge[i].connected)
                 Form.root.add(Form.Edge_Render[i/2]); 
         }
         scene1.add(Form.root);
@@ -480,7 +504,12 @@
         var json=JSON.parse(event.target.result);
         var mesh=Import_Mesh_Type=="Force"? Force.diagram:Form.diagram;
         var dual=Import_Mesh_Type=="Force"? Form.diagram:Force.diagram;
+
         var v=[],e=[];
+        FormIntersected=null;
+        ForceResponding=null;
+        ForceIntersected=[];
+
         MaxForceLength=undefined;
 
        
@@ -614,16 +643,21 @@
         'use strict'
         if(ForceIntersected.length==0)
             return;
-        var numl,numf,highlight_face_id;
+        var numl,numf,form_numv,highlight_face_id;
         for(var j=0;j<ForceIntersected.length;j++){
             numl=Force.diagram.mesh_half_edge.length;
             numf=Force.diagram.mesh_face.length;
+            form_numv=Form.diagram.mesh_vertex.length;
             highlight_face_id=ForceIntersected[j];
             Force.root.remove(Force.Face_Render[highlight_face_id]);
             BaryCentricSubdivision(Force.diagram,Form.diagram,highlight_face_id);
             
             //Change the rendering result of line;
             for(var i=numl;i<Force.diagram.mesh_half_edge.length;i+=2){
+                var len=new THREE.Vector3().subVectors(Force.diagram.mesh_half_edge[i].vert.pos,
+                    Force.diagram.mesh_half_edge[i].sym.vert.pos).length();
+                if(len>MaxForceLength)
+                    MaxForceLength=len;
                 var force_line=new THREE.Geometry();
                 force_line.vertices.push(new THREE.Vector3().copy(Force.diagram.mesh_half_edge[i].sym.vert.pos),
                     new THREE.Vector3().copy(Force.diagram.mesh_half_edge[i].vert.pos));
@@ -675,6 +709,21 @@
                 Force.Face_Render[i].base_color=Force.Material[1].color;
                 Force.Face_Render[i].FormVertID=Force.diagram.mesh_face[i].Form_Vert_ID;
                 Force.root.add(Force.Face_Render[i]);
+            }
+            //Compute the radius of form vertex
+            for(var i=form_numv;i<Form.diagram.mesh_vertex.length;i++){
+                if(Form.diagram.mesh_vertex[i].Force_Face_ID!=undefined){
+                    var f=Force.diagram.mesh_face[Form.diagram.mesh_vertex[i].Force_Face_ID];
+                    var e=f.startedge;
+                    var maxthick=0;
+                    do{
+                        var thick=new THREE.Vector3().subVectors(e.vert.pos,e.sym.vert.pos).length();
+                        if(thick>maxthick)
+                            maxthick=thick;
+                        e=e.next;
+                    }while(e!=f.startedge)
+                    Form.diagram.mesh_vertex[i].radius=maxthick;
+                }
             }
         }
         DrawForm();
@@ -818,10 +867,18 @@
         datgui.add(guiList.Export_Poly_Data,'Export_Poly_Data');
 
         MaxController.onChange(function(value) {
+            Form.strengthColorScaler=d3.scaleLinear()
+            .domain([0, 0.25 * guiList.Parameter.MaxThickness, 0.5 * guiList.Parameter.MaxThickness, 
+                0.75 * guiList.Parameter.MaxThickness, guiList.Parameter.MaxThickness])
+            .range(['#aaffff', '#78c8e6', '#468cb0', '#14506e', '#001432']);
             if(Form.diagram.half_finished)
                 DrawForm();
         });
 
+        Form.strengthColorScaler=d3.scaleLinear()
+            .domain([0, 0.25 * guiList.Parameter.MaxThickness, 0.5 * guiList.Parameter.MaxThickness, 
+                0.75 * guiList.Parameter.MaxThickness, guiList.Parameter.MaxThickness])
+            .range(['#aaffff', '#78c8e6', '#468cb0', '#14506e', '#001432']);
 
 
         

@@ -10,7 +10,6 @@
 <body>
 	<script>
 		window.onload = function(){
-			console.log("here");
 			var form_vertices=JSON.parse(localStorage.Form_Vertices);
 			var form_edges=JSON.parse(localStorage.Form_Edges);
 			var force_vertices=JSON.parse(localStorage.Force_Vertices);
@@ -21,10 +20,8 @@
 			if(form_vertices==undefined || form_edges==undefined)
 				document.write("No form data to be shown");
 			else{
-				document.write("Form Graph:");
-				document.write("\r\n");
-				document.write("Vertices:");	
-				document.write("\r\n");
+				document.write("Form Graph:\r\n");
+				document.write("Vertices:\r\n");	
 				document.write("idx\tpos_X\t\tpos_Y\t\tpos_Z\r");
 				for(var i in form_vertices)
 				{
@@ -35,8 +32,7 @@
 						+form_v_obj.z.toFixed(6)+"\r");
 				}
 				document.write("\r\n\n");			
-				document.write("Edges:");
-				document.write("\r\n");
+				document.write("Edges:\r\n");
 				document.write("idx\tv_idx1\tv_idx2\r");
 				for(var i in form_edges)
 				{
@@ -51,10 +47,8 @@
 			if(force_vertices==undefined || force_edges==undefined)
 				document.write("No force data to be shown");
 			else{
-				document.write("Force Graph:");
-				document.write("\r\n");
-				document.write("Vertices:");	
-				document.write("\r\n");
+				document.write("Force Graph:\r\n");
+				document.write("Vertices:\r\n");	
 				document.write("idx\tpos_X\t\tpos_Y\t\tpos_Z\r");
 				for(var i in force_vertices)
 				{
@@ -65,8 +59,7 @@
 						+force_v_obj.z.toFixed(6)+"\r");
 				}
 				document.write("\r\n\n");			
-				document.write("Edges:");
-				document.write("\r\n");
+				document.write("Edges:\r\n");
 				document.write("idx\tv_idx1\tv_idx2\r");
 				for(var i in force_edges)
 				{
@@ -75,6 +68,17 @@
 						+force_e_obj.v1+"\t"
 						+force_e_obj.v2+"\r");
 				}
+				document.write("\r\n\r\n");
+			}
+			if(force_vertices!=undefined&& force_edges!=undefined){
+				document.write("Correspond Relationships:\r\n");
+				document.write("Form_Edges_Idx\tForce_Edges_Idx\r");
+				for(var i in form_edges){
+					var form_e_obj=JSON.parse(form_edges[i]);
+					document.write(form_e_obj.index+"\t\t"
+						+form_e_obj.Force_Edge_ID+"\r");
+				}
+				document.write("\r\n\r\n");
 			}
 			
 			document.write("</XMP>")

@@ -397,83 +397,86 @@ Mesh.prototype.Produce_dual_structure=function(){
 	 if(this.half_finished==false) return;
 	 var node_num_2=this.node.length*2;
 	 var internal_edge_num= this.internal_dual_edge_map.length;
-	 if(node_num_2==0 ||internal_edge_num==0) return;
-	 var m_Aeq=[];
-     var m_A=[],m_b=[],m_beq=[],m_C=[];;
-	 var rank=0;
-     var s;
-     var tol;
+	 if(node_num_2>0){
+         var m_Aeq=[];
+         var m_A=[],m_b=[],m_beq=[],m_C=[];;
+         var rank=0;
+         var s;
+         var tol;
 
-	 for(var i=0;i<node_num_2;i+=2){
-	 	m_Aeq[i]=new Array(internal_edge_num);
-	 	m_Aeq[i+1]=new Array(internal_edge_num);
-	 	m_Aeq[i].fill(0);
-	 	m_Aeq[i+1].fill(0);
-	 	for(var j=0;j<this.node[i/2].face_pair.length;j++)	{
-	 		var sign=-1;
-	 		var id=this.node[i/2].face_pair[j].dual_edge_ID;
-	 		if(this.node[i/2].face_pair[j].f_p.x==this.internal_dual_edge_map[id].f_p.x &&
-	 			this.node[i/2].face_pair[j].f_p.y==this.internal_dual_edge_map[id].f_p.y)
-	 			sign=1;
-	 		m_Aeq[i][id]=sign*this.internal_dual_edge_map[id].direction_vector.x;
-	 		m_Aeq[i+1][id]=sign*this.internal_dual_edge_map[id].direction_vector.y;
-	 	}
-	 }
+         for(var i=0;i<node_num_2;i+=2){
+            m_Aeq[i]=new Array(internal_edge_num);
+            m_Aeq[i+1]=new Array(internal_edge_num);
+            m_Aeq[i].fill(0);
+            m_Aeq[i+1].fill(0);
+            for(var j=0;j<this.node[i/2].face_pair.length;j++)  {
+                var sign=-1;
+                var id=this.node[i/2].face_pair[j].dual_edge_ID;
+                if(this.node[i/2].face_pair[j].f_p.x==this.internal_dual_edge_map[id].f_p.x &&
+                    this.node[i/2].face_pair[j].f_p.y==this.internal_dual_edge_map[id].f_p.y)
+                    sign=1;
+                m_Aeq[i][id]=sign*this.internal_dual_edge_map[id].direction_vector.x;
+                m_Aeq[i+1][id]=sign*this.internal_dual_edge_map[id].direction_vector.y;
+            }
+         }
 
-     if(m_Aeq.length<m_Aeq[0].length){
-        var m_Aeq_copy=m_Aeq.slice();
-        while(m_Aeq_copy.length<m_Aeq_copy[0].length){
-            var arr=new Array(m_Aeq[0].length);
-            arr.fill(0);
-            m_Aeq_copy.push(arr);
+         if(m_Aeq.length<m_Aeq[0].length){
+            var m_Aeq_copy=m_Aeq.slice();
+            while(m_Aeq_copy.length<m_Aeq_copy[0].length){
+                var arr=new Array(m_Aeq[0].length);
+                arr.fill(0);
+                m_Aeq_copy.push(arr);
+            }
+            s=numeric.svd(m_Aeq_copy).S;
+         }
+         else
+            s=numeric.svd(m_Aeq).S;
+         var maxS=0;
+         for(var i=0;i<s.length;i++){
+             if(Math.abs(s[i])>maxS)
+                maxS=Math.abs(s[i]);
+         }
+         tol=maxS*0.001;
+         for(var i=0;i<s.length;i++){
+             if(Math.abs(s[i])>tol)
+                 rank++;
+         }
+         if(rank<m_Aeq.length){       
+             m_Aeq=Maxium_Linear_Independent_Group(numeric.transpose(m_Aeq),tol).result;
+             m_Aeq=numeric.transpose(m_Aeq);
+         }
+
+
+         if(m_Aeq.length>=m_Aeq[0].length){
+            alert("No Positive solution")
+            return;
+         }
+
+         for(var i=0;i<m_Aeq[0].length;i++) {
+            m_A[i]=new Array(m_Aeq[0].length);
+            m_A[i].fill(0);
+            m_A[i][i]=-1;
+         }
+         for(var i=0;i<m_Aeq[0].length;i++)
+            m_b[i]=-1;
+         for(var i=0;i<m_Aeq.length;i++)
+            m_beq[i]=0;  
+         for(var i=0;i<m_Aeq[0].length;i++)
+            m_C[i]=1;
+
+        var x=numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq); 
+        console.log(x);
+        if(x.message=="Infeasible") {
+            alert("No Positive solution")
+            return;
         }
-        s=numeric.svd(m_Aeq_copy).S;
+
+         for(var i=0;i<internal_edge_num;i++) {
+            this.internal_dual_edge_map[i].length=x.solution[i];
+         }
      }
-     else
-        s=numeric.svd(m_Aeq).S;
-     var maxS=0;
-     for(var i=0;i<s.length;i++){
-         if(Math.abs(s[i])>maxS)
-            maxS=Math.abs(s[i]);
-     }
-     tol=maxS*0.001;
-     for(var i=0;i<s.length;i++){
-         if(Math.abs(s[i])>tol)
-             rank++;
-     }
-     if(rank<m_Aeq.length){       
-         m_Aeq=Maxium_Linear_Independent_Group(numeric.transpose(m_Aeq),tol).result;
-         m_Aeq=numeric.transpose(m_Aeq);
-     }
+	 
 
-
-	 if(m_Aeq.length>=m_Aeq[0].length){
-	 	alert("No Positive solution")
-	 	return;
-	 }
-
-	 for(var i=0;i<m_Aeq[0].length;i++) {
-	 	m_A[i]=new Array(m_Aeq[0].length);
-	 	m_A[i].fill(0);
-	 	m_A[i][i]=-1;
-	 }
-	 for(var i=0;i<m_Aeq[0].length;i++)
-	 	m_b[i]=-1;
-	 for(var i=0;i<m_Aeq.length;i++)
-	 	m_beq[i]=0;	 
-	 for(var i=0;i<m_Aeq[0].length;i++)
-	 	m_C[i]=1;
-
-	var x=numeric.solveLP(m_C,m_A,m_b,m_Aeq,m_beq); 
-	console.log(x);
-	if(x.message=="Infeasible")	{
-		alert("No Positive solution")
-		return;
-	}
-
-	 for(var i=0;i<internal_edge_num;i++) {
-        this.internal_dual_edge_map[i].length=x.solution[i];
-	 }
 	 var startId=0;
 	 if(this.external_face_ID==0) startId=1;
 	 this.mesh_face[startId].dual_pos=new THREE.Vector3(0,0,0);
@@ -511,7 +514,6 @@ Mesh.prototype.Produce_dual_structure=function(){
 }
 
 Mesh.prototype.computeDualPos=function(startFace_id){
-	if(this.internal_dual_edge_map.length==0) return;
 	var startPos=this.mesh_face[startFace_id].dual_pos;
 	if(startPos==undefined) return;
 	var start_he=this.mesh_face[startFace_id].startedge;
