@@ -3,7 +3,7 @@
 This is an online tool to help users to produce the dual structure of a 2D polygon. I developed this tool for Polyhedral Structures Lab of PennDesign. Here is the demo for the tool. 
 
 ## Demo
-![](./img/mini_demo.gif)
+![](./img/Demo.gif)
 For the video demo, click [here].
 
 ## Description.
@@ -22,7 +22,7 @@ For each close polygon face in the dual structure, the vectorial sum of all its 
 ![](./img/equation1.png)
 
 where x is the solution matrix for the length of all the internal edges of the dual structure and A matrix can be written as something like:
-![](./img/equation2.png)
+![](./img/equation.png)
 
 In the A matrix, each column represents the direction of one of the face pairs in the original graph(or one of the edges in the dual structure). Each row reprensents a node in the original graph. The vectorial sum of the internal halfedges in the dual structure that is built around a node in the original graph should equal to 0. 
 ![](./img/illustration.png)
