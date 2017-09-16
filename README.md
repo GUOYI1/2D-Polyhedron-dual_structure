@@ -4,7 +4,7 @@ This is an online tool to help users to produce the dual structure of a 2D polyg
 
 ## Demo
 ![](./img/Demo.gif)
-For the video demo, click [here].
+For the video demo, click [here](https://vimeo.com/234148960).
 
 ## Description.
 The dual structure of 2D polygons(or 3D polyhedrons) is widely used in structure mechanics field. In the dual structure, each point corresponds with a face in the original graph. Each edge correspondings with a face pair of the orginal graph and is perpendicular with the edge that the 2 faces share. In this project, when you select one of the element in the dual structure, the corresponding element in the original graph will be highlighted. To solve the vertex positions of the dual structure, I construct a matrix equation based on the topological structure of the original graph.
