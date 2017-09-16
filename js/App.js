@@ -98,7 +98,7 @@
             //Internal edges
             new THREE.MeshBasicMaterial( { 
             color: 0x156289, 
-            opacity: 0.6,
+            opacity: 0.8,
             transparent:true,
             side: THREE.DoubleSide,
             depthWrite: false
@@ -398,6 +398,7 @@
         'use strict'
         if(scene1.children.length>0)
             scene1.remove(Form.root);
+        console.log(MaxForceLength);
         Form.root=new THREE.Object3D();
         Form.Vert_Render=[];
         Form.Edge_Render=[];
@@ -501,6 +502,12 @@
     function buildMeshStructure(event){
         'use strict'
         //ReInitialize
+        camera=new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 50000);
+        camera.position.x=0;
+        camera.position.y=0;
+        camera.position.z=100;
+        orbit = new THREE.OrbitControls( camera, renderer.domElement);
+
         var json=JSON.parse(event.target.result);
         var mesh=Import_Mesh_Type=="Force"? Force.diagram:Form.diagram;
         var dual=Import_Mesh_Type=="Force"? Form.diagram:Force.diagram;
