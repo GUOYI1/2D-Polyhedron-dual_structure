@@ -121,14 +121,14 @@ BaryCentricSubdivision=function(ForceMesh,FormMesh,f_id)
 			var B2=perpen2.y;
 			var C1=-A1*form_e.vert.pos.x-B1*form_e.vert.pos.y;
 			var C2=-A2*original_form_pos.x-B2*original_form_pos.y;
-		 	solution=Line_intersection_2D(A1,B1,C1,A2,B2,C2);
-		 	new_v.pos=new THREE.Vector3(solution[0],solution[1],0);
-	 		new_v.Force_Face_ID=next_he.face.id;
-	 		next_he.face.Form_Vert_ID=new_v.id;
-	 		new_v.edge=new_he;
-	 		next_form_e.vert=new_v;
-	 		FormMesh.mesh_vertex.push(new_v);
-	 		Form_v_num++;
+			solution=Line_intersection_2D(A1,B1,C1,A2,B2,C2);
+			new_v.pos=new THREE.Vector3(solution[0],solution[1],0);
+			new_v.Force_Face_ID=next_he.face.id;
+			next_he.face.Form_Vert_ID=new_v.id;
+			new_v.edge=new_he;
+			next_form_e.vert=new_v;
+			FormMesh.mesh_vertex.push(new_v);
+			Form_v_num++;
 		}
 		else
 			new_v=next_form_e.vert;
@@ -198,8 +198,8 @@ BaryCentricSubdivision=function(ForceMesh,FormMesh,f_id)
 			var node_face_pair_obj=new Node_Face_Pair;
 			var reverse_face_pair_obj=new Node_Face_Pair;
 
-		    node_face_pair_obj.f_p=new THREE.Vector2(he.sym.face.id,he.face.id); 		
-		    reverse_face_pair_obj.f_p=new THREE.Vector2(he.face.id,he.sym.face.id);
+			node_face_pair_obj.f_p=new THREE.Vector2(he.sym.face.id,he.face.id); 		
+			reverse_face_pair_obj.f_p=new THREE.Vector2(he.face.id,he.sym.face.id);
 			var in_edge_obj=new Internal_Dual_Edge_Obj();	
 			var sign=1;	    
 			if(node_face_pair_obj.f_p.y>node_face_pair_obj.f_p.x)
@@ -227,7 +227,7 @@ BaryCentricSubdivision=function(ForceMesh,FormMesh,f_id)
 			if(n!=undefined)
 			{
 				var idx=n.Sort_Face_ID.findIndex(function(x) { 
-		    		return (x==f_id); });
+					return (x==f_id); });
 				
 				var idx1=idx;
 				if(idx==0) 
@@ -276,42 +276,42 @@ BaryCentricSubdivision=function(ForceMesh,FormMesh,f_id)
 			var sign=1;
 			var temp_he=n.vert.edge;
 			map_index=FormMesh.internal_dual_edge_map.length;
-    		do
-	    	{
-	    		n.Sort_Face_ID.push(temp_he.sym.face.id); 
-	    		var node_face_pair_obj=new Node_Face_Pair();
-	    	 	node_face_pair_obj.f_p=new THREE.Vector2(temp_he.sym.face.id,temp_he.face.id);	
-	    		var index=FormMesh.internal_dual_edge_map.findIndex(function(x) { 
-	    		return (x.f_p.x == node_face_pair_obj.f_p.x && x.f_p.y == node_face_pair_obj.f_p.y)
-	    				|| (x.f_p.x==node_face_pair_obj.f_p.y && x.f_p.y==node_face_pair_obj.f_p.x); });
-	    		if(index==-1){
-	                var in_edge_obj=new Internal_Dual_Edge_Obj();
-		    		if(node_face_pair_obj.f_p.y>node_face_pair_obj.f_p.x){
-	                    sign=1;
-	                    in_edge_obj.f_p=new THREE.Vector2(node_face_pair_obj.f_p.x,node_face_pair_obj.f_p.y);
-	                }
-		    		else{
-		    			sign=-1;
-	                    in_edge_obj.f_p=new THREE.Vector2(node_face_pair_obj.f_p.y,node_face_pair_obj.f_p.x);
-		    		}
-	                var l=(new THREE.Vector3().subVectors(temp_he.vert.pos,temp_he.sym.vert.pos));
-	                var dir=GetEdgeNormal2D(l).multiplyScalar(sign);
-		    		in_edge_obj.direction_vector=dir;
-		    		in_edge_obj.id=map_index;
-		    		in_edge_obj.length=new THREE.Vector3().subVectors(temp_he.face.dual_pos,temp_he.sym.face.dual_pos).length();
-	                if(sign==-1) in_edge_obj.hl_ID=temp_he.id;
-	                else in_edge_obj.hl_ID=temp_he.sym.id;              
-		    		FormMesh.internal_dual_edge_map.push(in_edge_obj);
-		    		node_face_pair_obj.dual_edge_ID=map_index;
-		    		map_index++;
-		    	}
-	    		else
-	    			node_face_pair_obj.dual_edge_ID=index;
-	    		n.face_pair.push(node_face_pair_obj);
-	    		temp_he=temp_he.next.sym;
-	    	}while(temp_he!=n.vert.edge)
+			do
+			{
+				n.Sort_Face_ID.push(temp_he.sym.face.id); 
+				var node_face_pair_obj=new Node_Face_Pair();
+				node_face_pair_obj.f_p=new THREE.Vector2(temp_he.sym.face.id,temp_he.face.id);	
+				var index=FormMesh.internal_dual_edge_map.findIndex(function(x) { 
+					return (x.f_p.x == node_face_pair_obj.f_p.x && x.f_p.y == node_face_pair_obj.f_p.y)
+					|| (x.f_p.x==node_face_pair_obj.f_p.y && x.f_p.y==node_face_pair_obj.f_p.x); });
+				if(index==-1){
+					var in_edge_obj=new Internal_Dual_Edge_Obj();
+					if(node_face_pair_obj.f_p.y>node_face_pair_obj.f_p.x){
+						sign=1;
+						in_edge_obj.f_p=new THREE.Vector2(node_face_pair_obj.f_p.x,node_face_pair_obj.f_p.y);
+					}
+					else{
+						sign=-1;
+						in_edge_obj.f_p=new THREE.Vector2(node_face_pair_obj.f_p.y,node_face_pair_obj.f_p.x);
+					}
+					var l=(new THREE.Vector3().subVectors(temp_he.vert.pos,temp_he.sym.vert.pos));
+					var dir=GetEdgeNormal2D(l).multiplyScalar(sign);
+					in_edge_obj.direction_vector=dir;
+					in_edge_obj.id=map_index;
+					in_edge_obj.length=new THREE.Vector3().subVectors(temp_he.face.dual_pos,temp_he.sym.face.dual_pos).length();
+					if(sign==-1) in_edge_obj.hl_ID=temp_he.id;
+					else in_edge_obj.hl_ID=temp_he.sym.id;              
+					FormMesh.internal_dual_edge_map.push(in_edge_obj);
+					node_face_pair_obj.dual_edge_ID=map_index;
+					map_index++;
+				}
+				else
+					node_face_pair_obj.dual_edge_ID=index;
+				n.face_pair.push(node_face_pair_obj);
+				temp_he=temp_he.next.sym;
+			}while(temp_he!=n.vert.edge)
 
-	    	form_e=form_e.next;
+			form_e=form_e.next;
 		}while(form_e!=first_new_he)
 	}
 
