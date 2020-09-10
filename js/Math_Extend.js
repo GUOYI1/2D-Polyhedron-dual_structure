@@ -41,7 +41,7 @@ function Maxium_Linear_Independent_Group(m,tol){
         var tmp = matrix[i];
         matrix[i] = matrix[r];
         matrix[r] = tmp;
- 
+        
         var val = matrix[r][lead];
         for (var j = 0; j < cols; j++) {
             matrix[r][j] /= val;
